@@ -5,9 +5,12 @@
 void* smalloc(size_t size){
     if(size==0 || size>pow(10,8))
         return NULL;
-    void* currPB=sbrk(0);
-    if(sbrk(size)!=currPB)
-        return NULL;
 
-    std::cout << "allocated: "<< size << std::endl;
+    void* newBlock=sbrk(size);
+
+    if(newBlock==(void*)(-1))
+        return NULL;
+    else
+        return newBlock;
+
 }
