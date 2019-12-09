@@ -1,4 +1,9 @@
+#include <iostream>
 #include <unistd.h>
+#include <cmath>
+#include <stdio.h>
+#include <string.h>
+#include "malloc_2.h"
 
 
 struct MallocMetadata {
@@ -15,13 +20,22 @@ struct ListOfMallocMetadata{
     MallocMetadata** firstBlock;
     MallocMetadata** lastBlock;
 
-    ListOfMallocMetadata():numberOfBlocksInUse(0){}
+    ListOfMallocMetadata():numberOfBlocksInUse(2){}
 };
 
-//Global list of MallocMetadata
-ListOfMallocMetadata* listOfBlocks=new ListOfMallocMetadata();
+
+ListOfMallocMetadata* listOfBlocks=(ListOfMallocMetadata*)sbrk(_size_meta_data());
+//ListOfMallocMetadata* listOfBlocks;
+
 
 void* smalloc(size_t size){
+    if(size==0 || size>pow(10,8))
+        return NULL;
+if(!listOfBlocks->numberOfBlocksInUse){
+    const ListOfMallocMetadata firstList=ListOfMallocMetadata();
+    memcpy(listOfBlocks,&firstList,sizeof(ListOfMallocMetadata));
+    std::cout<<"number of active blocks: "<<listOfBlocks->numberOfBlocksInUse<<std::endl;
+}
 
 }
 
