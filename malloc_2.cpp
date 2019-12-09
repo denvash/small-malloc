@@ -15,6 +15,8 @@ struct ListOfMallocMetadata{
     MallocMetadata** lastBlock;
 };
 
+//Global list of MallocMetadata
+
 ListOfMallocMetadata* listOfBlocks;
 
 
