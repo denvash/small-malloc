@@ -1,4 +1,5 @@
-#include <cstdlib>
+#include <unistd.h>
+
 
 struct MallocMetadata {
     size_t size;
@@ -13,12 +14,12 @@ struct ListOfMallocMetadata{
     int numberOfBlocksInUse;
     MallocMetadata** firstBlock;
     MallocMetadata** lastBlock;
+
+    ListOfMallocMetadata():numberOfBlocksInUse(0){}
 };
 
 //Global list of MallocMetadata
-
-ListOfMallocMetadata* listOfBlocks;
-
+ListOfMallocMetadata* listOfBlocks=new ListOfMallocMetadata();
 
 void* smalloc(size_t size){
 
