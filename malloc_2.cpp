@@ -20,7 +20,7 @@ struct ListOfMallocMetadata{
     MallocMetadata** firstBlock;
     MallocMetadata** lastBlock;
 
-    ListOfMallocMetadata():numberOfBlocksInUse(2){}
+    ListOfMallocMetadata():numberOfBlocksInUse(-1){}
 };
 
 
