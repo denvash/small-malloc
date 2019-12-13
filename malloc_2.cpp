@@ -90,11 +90,24 @@ void* scalloc(size_t num,size_t size){
 }
 
 void* sfree(void* p){
-
+return NULL;
 }
 
 void* srealloc(void* oldp,size_t size){
-
+    if(size==0 || size>pow(10,8))
+        return NULL;
+    if(!oldp)
+        return smalloc(size);
+    if(((MallocMetadata*)oldp-1)->size>=size)
+        return oldp;
+    else{
+        void* newBlockAdress=smalloc(size);
+        if(!newBlockAdress)
+            return NULL;
+        memcpy(newBlockAdress,oldp,((MallocMetadata*)oldp-1)->size);
+        sfree(oldp);
+        return newBlockAdress;
+    }
 }
 
 size_t _num_free_blocks(){
