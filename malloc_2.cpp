@@ -45,6 +45,7 @@ void* smalloc(size_t size){
         MallocMetadata* firstMeta=(MallocMetadata*)firstBlockAdress;
         firstMeta->size=size;
         firstMeta->is_free=false;
+//        firstMeta->is_free=true;
         listOfBlocks.numberOfBlocksInUse++;
         listOfBlocks.firstBlock=firstMeta;
         listOfBlocks.lastBlock=firstMeta;
@@ -53,7 +54,7 @@ void* smalloc(size_t size){
     MallocMetadata* currBlock=listOfBlocks.firstBlock;
 
     while(currBlock!=NULL){
-        if(currBlock->size==size && currBlock->is_free)
+        if(currBlock->size>=size && currBlock->is_free)
             return (void*)(currBlock+1);
 
         currBlock=currBlock->next;
@@ -66,6 +67,7 @@ void* smalloc(size_t size){
         MallocMetadata* newMeta=(MallocMetadata*)newBlockAdress;
         newMeta->size=size;
         newMeta->is_free=false;
+//        newMeta->is_free=true;
         listOfBlocks.numberOfBlocksInUse++;
         listOfBlocks.lastBlock=newMeta;
 
@@ -76,6 +78,14 @@ void* smalloc(size_t size){
 }
 
 void* scalloc(size_t num,size_t size){
+    if(size==0 || size*num>pow(10,8))
+        return NULL;
+
+    void* newBlockAdress=smalloc(num*size);
+    if(!newBlockAdress)
+        return NULL;
+    memset(newBlockAdress,0,num*size);
+    return newBlockAdress;
 
 }
 
