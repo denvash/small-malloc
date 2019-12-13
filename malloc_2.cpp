@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "malloc_2.h"
+#include <stddef.h>
 
 
 
@@ -35,9 +36,36 @@ void* smalloc(size_t size){
     if(size==0 || size>pow(10,8))
         return NULL;
 
-    listOfBlocks.firstBlock=(MallocMetadata*)sbrk(0);
-    std::cout<<"first block adress:"<<listOfBlocks.firstBlock<<std::endl;
-    std::cout<<"PB:"<<sbrk(0)<<std::endl;
+//first block allocation
+    if(!listOfBlocks.numberOfBlocksInUse){
+       void* firstBlockAdress=sbrk(sizeof(MallocMetadata)+size);
+       if(firstBlockAdress==(void*)(-1))
+           return NULL;
+
+        MallocMetadata* firstMeta=(MallocMetadata*)firstBlockAdress;
+        firstMeta->size=size;
+        firstMeta->is_free=false;
+        listOfBlocks.numberOfBlocksInUse++;
+        listOfBlocks.firstBlock=firstMeta;
+        listOfBlocks.lastBlock=firstMeta;
+        return (void*)(firstMeta+1);
+    }else{
+    MallocMetadata* currBlock=listOfBlocks.firstBlock;
+
+    while(currBlock!=NULL){
+        if(currBlock->size==size){
+            return (void*)(currBlock+1);
+        }
+        currBlock=currBlock->next;
+    }
+
+    //didn't find proper block,need to allocate
+        void* newBlockAdress=sbrk(sizeof(MallocMetadata)+size);
+        if(newBlockAdress==(void*)(-1))
+            return NULL;
+
+
+    }
 
 
 }
