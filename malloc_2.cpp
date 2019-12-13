@@ -53,9 +53,9 @@ void* smalloc(size_t size){
     MallocMetadata* currBlock=listOfBlocks.firstBlock;
 
     while(currBlock!=NULL){
-        if(currBlock->size==size){
+        if(currBlock->size==size && currBlock->is_free)
             return (void*)(currBlock+1);
-        }
+
         currBlock=currBlock->next;
     }
 
@@ -63,8 +63,13 @@ void* smalloc(size_t size){
         void* newBlockAdress=sbrk(sizeof(MallocMetadata)+size);
         if(newBlockAdress==(void*)(-1))
             return NULL;
+        MallocMetadata* newMeta=(MallocMetadata*)newBlockAdress;
+        newMeta->size=size;
+        newMeta->is_free=false;
+        listOfBlocks.numberOfBlocksInUse++;
+        listOfBlocks.lastBlock=newMeta;
 
-
+        return (void*)(newMeta+1);
     }
 
 
