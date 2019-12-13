@@ -6,6 +6,8 @@
 #include "malloc_2.h"
 
 
+
+
 struct MallocMetadata {
     size_t size;
     bool is_free;
@@ -17,8 +19,8 @@ struct MallocMetadata {
 
 struct ListOfMallocMetadata{
     int numberOfBlocksInUse;
-    MallocMetadata** firstBlock;
-    MallocMetadata** lastBlock;
+    MallocMetadata* firstBlock;
+    MallocMetadata* lastBlock;
 
     ListOfMallocMetadata():numberOfBlocksInUse(0){}
 };
@@ -32,6 +34,11 @@ static ListOfMallocMetadata listOfBlocks;
 void* smalloc(size_t size){
     if(size==0 || size>pow(10,8))
         return NULL;
+
+    listOfBlocks.firstBlock=(MallocMetadata*)sbrk(0);
+    std::cout<<"first block adress:"<<listOfBlocks.firstBlock<<std::endl;
+    std::cout<<"PB:"<<sbrk(0)<<std::endl;
+
 
 }
 
