@@ -117,11 +117,13 @@ void* srealloc(void* oldp,size_t size){
     if(((MallocMetadata*)oldp-1)->size>=size)
         return oldp;
     else{
+        sfree(oldp);
         void* newBlockAdress=smalloc(size);
         if(!newBlockAdress)
             return NULL;
+
         memcpy(newBlockAdress,oldp,((MallocMetadata*)oldp-1)->size);
-        sfree(oldp);
+
         return newBlockAdress;
     }
 }

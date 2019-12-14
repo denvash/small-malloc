@@ -32,6 +32,7 @@ struct ListOfMallocMetadata{
 
 
 static ListOfMallocMetadata listOfBlocks;
+//ListOfMallocMetadata* listOfBlocks={};
 
 void* splitBlock(void* blockAdress,size_t leastSignificantSize){
     MallocMetadata* leastSignificantMeta=(MallocMetadata*)blockAdress;
@@ -55,7 +56,7 @@ void* splitBlock(void* blockAdress,size_t leastSignificantSize){
         tempMeta->prev=mostSignificantMeta;
     }
 
-    return (void*)(mostSignificantMeta+1);
+    return blockAdress;
 }
 void* smalloc(size_t size){
     if(size==0 || size>pow(10,8))
@@ -135,9 +136,68 @@ void sfree(void* p){
     else if(((MallocMetadata*)p-1)->is_free)
         return;
 
-    ((MallocMetadata*)p-1)->is_free=true;
+    //both neighbors are free
+    if(((MallocMetadata*)p-1)->next && (((MallocMetadata*)p-1)->next)->is_free &&
+        ((MallocMetadata*)p-1)->prev && (((MallocMetadata*)p-1)->prev)->is_free){
+
+        MallocMetadata* tempMeta=(((MallocMetadata*)p-1)->next)->next;
+
+        size_t totalNewFreeBlockSize=(((MallocMetadata*)p-1)->prev)->size+
+                ((MallocMetadata*)p-1)->size+
+                (((MallocMetadata*)p-1)->next)->size +2*(sizeof(MallocMetadata));
+        (((MallocMetadata*)p-1)->prev)->size=totalNewFreeBlockSize;
+        (((MallocMetadata*)p-1)->prev)->next=tempMeta;
+
+        if(tempMeta)
+            tempMeta->prev=(((MallocMetadata*)p-1)->prev);
+        else
+            listOfBlocks.lastBlock=(((MallocMetadata*)p-1)->prev);
+
+        listOfBlocks.totalAllocatedBlocks-=2;
+
+
+    //only higher neighbor is free
+    }else if(((MallocMetadata*)p-1)->next && (((MallocMetadata*)p-1)->next)->is_free){
+        MallocMetadata* tempMeta=(((MallocMetadata*)p-1)->next)->next;
+        size_t totalNewFreeBlockSize=((MallocMetadata*)p-1)->size+
+                                     (((MallocMetadata*)p-1)->next)->size +(sizeof(MallocMetadata));
+
+        ((MallocMetadata*)p-1)->size=totalNewFreeBlockSize;
+        ((MallocMetadata*)p-1)->is_free=true;
+        ((MallocMetadata*)p-1)->next=tempMeta;
+
+        if(tempMeta)
+            tempMeta->prev=((MallocMetadata*)p-1);
+        else
+            listOfBlocks.lastBlock=((MallocMetadata*)p-1);
+
+        listOfBlocks.totalAllocatedBlocks--;
+
+
+        //only lower neighbor is free
+    }else if(((MallocMetadata*)p-1)->prev && (((MallocMetadata*)p-1)->prev)->is_free){
+        MallocMetadata* tempMeta=((MallocMetadata*)p-1)->next;
+        size_t totalNewFreeBlockSize=((MallocMetadata*)p-1)->size+
+                                     (((MallocMetadata*)p-1)->prev)->size +(sizeof(MallocMetadata));
+
+        (((MallocMetadata*)p-1)->prev)->size=totalNewFreeBlockSize;
+        (((MallocMetadata*)p-1)->prev)->next=tempMeta;
+
+        if(tempMeta)
+            tempMeta->prev=((MallocMetadata*)p-1)->prev;
+        else
+            listOfBlocks.lastBlock=((MallocMetadata*)p-1)->prev;
+
+        listOfBlocks.totalAllocatedBlocks--;
+     //no merge with neighbors
+    }else{
+        ((MallocMetadata*)p-1)->is_free=true;
+    }
+
     listOfBlocks.numberOfBlocksInUse--;
     listOfBlocks.numberOfBytesInUse-=((MallocMetadata*)p-1)->size;
+
+
 }
 
 void* srealloc(void* oldp,size_t size){
@@ -148,11 +208,13 @@ void* srealloc(void* oldp,size_t size){
     if(((MallocMetadata*)oldp-1)->size>=size)
         return oldp;
     else{
+        sfree(oldp);
         void* newBlockAdress=smalloc(size);
         if(!newBlockAdress)
             return NULL;
+
         memcpy(newBlockAdress,oldp,((MallocMetadata*)oldp-1)->size);
-        sfree(oldp);
+
         return newBlockAdress;
     }
 }
@@ -184,14 +246,16 @@ size_t _num_meta_data_bytes(){
 void printAllMetaBlocks(){
     MallocMetadata* currBlock=listOfBlocks.firstBlock;
     while(currBlock!=NULL){
-        cout<< "Meta block adress:"<<currBlock<<endl;
-        cout<< "Meta block size:"<<currBlock->size<<endl;
-        cout<< "Meta block free?:"<<(bool)currBlock->is_free<<endl;
+        cout<< "curr Meta block adress:"<<currBlock<<endl;
+        cout<< "curr Meta block size:"<<currBlock->size<<endl;
+        cout<< "curr Meta block free?:"<<(bool)currBlock->is_free<<endl;
         cout<< "Number of Total allocted blocks:"<<_num_allocated_blocks()<<endl;
         cout<< "Number of Total allocated bytes:"<<_num_allocated_bytes()<<endl;
         cout<< "Number of free blocks:"<<_num_free_blocks()<<endl;
-        cout<< "Number of free bytes:"<<_num_free_blocks()<<endl;
+        cout<< "Number of free bytes:"<<_num_free_bytes()<<endl;
+        cout<< "Adress of static list:"<<&listOfBlocks<<endl;
         cout<< "========================"<<endl;
         currBlock=currBlock->next;
     }
+    cout<<"///"<<endl;
 }
