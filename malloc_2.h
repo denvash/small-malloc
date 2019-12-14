@@ -28,6 +28,7 @@ size_t _size_meta_data();
 
 size_t _num_meta_data_bytes();
 
+void printAllMetaBlocks();
 
 
 #endif //WET2_MALLOC_2_H

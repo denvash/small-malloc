@@ -33,21 +33,25 @@ static ListOfMallocMetadata listOfBlocks;
 
 void* splitBlock(void* blockAdress,size_t leastSignificantSize){
     MallocMetadata* leastSignificantMeta=(MallocMetadata*)blockAdress;
-    std::cout<<"size of mallocmetadata:"<<sizeof(MallocMetadata)<<std::endl;
-
     int mostSignificantSize=leastSignificantMeta->size-leastSignificantSize-sizeof(MallocMetadata);
     leastSignificantMeta->size=leastSignificantSize;
     leastSignificantMeta->is_free=false;
-//    void* splittedBlock=(void*)((MallocMetadata*)(leastSignificantMeta+1))+leastSignificantSize);
-    void* splittedBlock=(void*)((char*)(leastSignificantMeta+1)+leastSignificantSize);
 
+    void* splittedBlock=(void*)((char*)(leastSignificantMeta+1)+leastSignificantSize);
     MallocMetadata* mostSignificantMeta=(MallocMetadata*)splittedBlock;
     mostSignificantMeta->size=mostSignificantSize;
     mostSignificantMeta->is_free=true;
     mostSignificantMeta->prev=leastSignificantMeta;
-    MallocMetadata* tempMeta=leastSignificantMeta->next;
-    mostSignificantMeta->next=tempMeta;
-    tempMeta->prev=mostSignificantMeta;
+
+    if(!leastSignificantMeta->next){
+        leastSignificantMeta->next=mostSignificantMeta;
+        listOfBlocks.lastBlock=mostSignificantMeta;
+    }else{
+        MallocMetadata* tempMeta=leastSignificantMeta->next;
+        leastSignificantMeta->next=mostSignificantMeta;
+        mostSignificantMeta->next=tempMeta;
+        tempMeta->prev=mostSignificantMeta;
+    }
 
     return (void*)(mostSignificantMeta+1);
 }
@@ -74,14 +78,14 @@ void* smalloc(size_t size){
         MallocMetadata* finalLinkedBlock;
 
         while(currBlock!=NULL){
-            if(currBlock->size>=size && currBlock->is_free)
-                std::cout<<"size of mallocmetadata:"<<sizeof(MallocMetadata)<<std::endl;
-            int diff=currBlock->size-size-sizeof(MallocMetadata);
+            if(currBlock->size>=size && currBlock->is_free){
+                int diff=currBlock->size-size-sizeof(MallocMetadata);
 //                if(currBlock->size-size-sizeof(MallocMetadata)>=128)
                 if(diff>=128)
                     return splitBlock(currBlock,size);
                 else
                     return (void*)(currBlock+1);
+            }
 
             if(!(currBlock->next))
                 finalLinkedBlock=currBlock;
@@ -163,4 +167,15 @@ size_t _size_meta_data(){
 
 size_t _num_meta_data_bytes(){
     return (listOfBlocks.numberOfBlocksInUse)*(_size_meta_data());
+}
+
+void printAllMetaBlocks(){
+    MallocMetadata* currBlock=listOfBlocks.firstBlock;
+    while(currBlock!=NULL){
+        std::cout<< "Meta block adress:"<<currBlock<<std::endl;
+        std::cout<< "Meta block size:"<<currBlock->size<<std::endl;
+        std::cout<< "Meta block free?:"<<(bool)currBlock->is_free<<std::endl;
+        std::cout<< "========================"<<std::endl;
+        currBlock=currBlock->next;
+    }
 }
