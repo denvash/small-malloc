@@ -37,7 +37,7 @@ void* smalloc(size_t size){
         return NULL;
 
 //first block allocation
-    if(!listOfBlocks.numberOfBlocksInUse){
+    if(!listOfBlocks.totalAllocatedBlocks){
        void* firstBlockAdress=sbrk(sizeof(MallocMetadata)+size);
        if(firstBlockAdress==(void*)(-1))
            return NULL;
@@ -46,7 +46,9 @@ void* smalloc(size_t size){
         firstMeta->size=size;
         firstMeta->is_free=false;
         listOfBlocks.totalAllocatedBlocks++;
+        listOfBlocks.totalAllocatedBytes=size;
         listOfBlocks.numberOfBlocksInUse++;
+        listOfBlocks.numberOfBytesInUse=size;
         listOfBlocks.firstBlock=firstMeta;
         listOfBlocks.lastBlock=firstMeta;
         return (void*)(firstMeta+1);
@@ -70,11 +72,12 @@ void* smalloc(size_t size){
         MallocMetadata* newMeta=(MallocMetadata*)newBlockAdress;
         newMeta->size=size;
         newMeta->is_free=false;
-//        newMeta->is_free=true;
         newMeta->prev=finalLinkedBlock;
         finalLinkedBlock->next=newMeta;
         listOfBlocks.totalAllocatedBlocks++;
+        listOfBlocks.totalAllocatedBytes+=size;
         listOfBlocks.numberOfBlocksInUse++;
+        listOfBlocks.numberOfBytesInUse+=size;
         listOfBlocks.lastBlock=newMeta;
 
         return (void*)(newMeta+1);
