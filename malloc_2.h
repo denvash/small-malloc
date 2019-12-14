@@ -11,7 +11,7 @@ void* smalloc(size_t size);
 
 void* scalloc(size_t num,size_t size);
 
-void* sfree(void* p);
+void sfree(void* p);
 
 void* srealloc(void* oldp,size_t size);
 
@@ -28,6 +28,7 @@ size_t _size_meta_data();
 
 size_t _num_meta_data_bytes();
 
+void printAllMetaBlocks();
 
 
 #endif //WET2_MALLOC_2_H
