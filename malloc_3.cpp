@@ -5,6 +5,7 @@
 #include <string.h>
 #include "malloc_2.h"
 #include <stddef.h>
+using namespace std;
 
 
 
@@ -19,16 +20,17 @@ struct MallocMetadata {
 };
 
 struct ListOfMallocMetadata{
-    int numberOfBlocksInUse;
+    size_t totalAllocatedBlocks;
+    size_t totalAllocatedBytes;
+    size_t numberOfBlocksInUse;
+    size_t numberOfBytesInUse;
     MallocMetadata* firstBlock;
     MallocMetadata* lastBlock;
 
-    ListOfMallocMetadata():numberOfBlocksInUse(0){}
+    ListOfMallocMetadata():totalAllocatedBlocks(0),totalAllocatedBytes(0),numberOfBlocksInUse(0),numberOfBytesInUse(0){}
 };
 
 
-//ListOfMallocMetadata* listOfBlocks=(ListOfMallocMetadata*)sbrk(_size_meta_data());
-//ListOfMallocMetadata* listOfBlocks;
 static ListOfMallocMetadata listOfBlocks;
 
 void* splitBlock(void* blockAdress,size_t leastSignificantSize){
@@ -60,16 +62,18 @@ void* smalloc(size_t size){
         return NULL;
 
 //first block allocation
-    if(!listOfBlocks.numberOfBlocksInUse){
+    if(!listOfBlocks.totalAllocatedBlocks){
         void* firstBlockAdress=sbrk(sizeof(MallocMetadata)+size);
         if(firstBlockAdress==(void*)(-1))
             return NULL;
 
         MallocMetadata* firstMeta=(MallocMetadata*)firstBlockAdress;
         firstMeta->size=size;
-//        firstMeta->is_free=false;
-        firstMeta->is_free=true;
+        firstMeta->is_free=false;
+        listOfBlocks.totalAllocatedBlocks++;
+        listOfBlocks.totalAllocatedBytes=size;
         listOfBlocks.numberOfBlocksInUse++;
+        listOfBlocks.numberOfBytesInUse=size;
         listOfBlocks.firstBlock=firstMeta;
         listOfBlocks.lastBlock=firstMeta;
         return (void*)(firstMeta+1);
@@ -80,7 +84,6 @@ void* smalloc(size_t size){
         while(currBlock!=NULL){
             if(currBlock->size>=size && currBlock->is_free){
                 int diff=currBlock->size-size-sizeof(MallocMetadata);
-//                if(currBlock->size-size-sizeof(MallocMetadata)>=128)
                 if(diff>=128)
                     return splitBlock(currBlock,size);
                 else
@@ -99,11 +102,13 @@ void* smalloc(size_t size){
             return NULL;
         MallocMetadata* newMeta=(MallocMetadata*)newBlockAdress;
         newMeta->size=size;
-//        newMeta->is_free=false;
-        newMeta->is_free=true;
+        newMeta->is_free=false;
         newMeta->prev=finalLinkedBlock;
         finalLinkedBlock->next=newMeta;
+        listOfBlocks.totalAllocatedBlocks++;
+        listOfBlocks.totalAllocatedBytes+=size;
         listOfBlocks.numberOfBlocksInUse++;
+        listOfBlocks.numberOfBytesInUse+=size;
         listOfBlocks.lastBlock=newMeta;
 
         return (void*)(newMeta+1);
@@ -124,8 +129,15 @@ void* scalloc(size_t num,size_t size){
 
 }
 
-void* sfree(void* p){
-    return NULL;
+void sfree(void* p){
+    if(!p)
+        return;
+    else if(((MallocMetadata*)p-1)->is_free)
+        return;
+
+    ((MallocMetadata*)p-1)->is_free=true;
+    listOfBlocks.numberOfBlocksInUse--;
+    listOfBlocks.numberOfBytesInUse-=((MallocMetadata*)p-1)->size;
 }
 
 void* srealloc(void* oldp,size_t size){
@@ -146,19 +158,19 @@ void* srealloc(void* oldp,size_t size){
 }
 
 size_t _num_free_blocks(){
-
+return listOfBlocks.totalAllocatedBlocks-listOfBlocks.numberOfBlocksInUse;
 }
 
 size_t _num_free_bytes(){
-
+return listOfBlocks.totalAllocatedBytes-listOfBlocks.numberOfBytesInUse;
 }
 
 size_t _num_allocated_blocks(){
-
+return listOfBlocks.totalAllocatedBlocks;
 }
 
 size_t _num_allocated_bytes(){
-
+return listOfBlocks.totalAllocatedBytes;
 }
 
 size_t _size_meta_data(){
@@ -172,10 +184,14 @@ size_t _num_meta_data_bytes(){
 void printAllMetaBlocks(){
     MallocMetadata* currBlock=listOfBlocks.firstBlock;
     while(currBlock!=NULL){
-        std::cout<< "Meta block adress:"<<currBlock<<std::endl;
-        std::cout<< "Meta block size:"<<currBlock->size<<std::endl;
-        std::cout<< "Meta block free?:"<<(bool)currBlock->is_free<<std::endl;
-        std::cout<< "========================"<<std::endl;
+        cout<< "Meta block adress:"<<currBlock<<endl;
+        cout<< "Meta block size:"<<currBlock->size<<endl;
+        cout<< "Meta block free?:"<<(bool)currBlock->is_free<<endl;
+        cout<< "Number of Total allocted blocks:"<<_num_allocated_blocks()<<endl;
+        cout<< "Number of Total allocated bytes:"<<_num_allocated_bytes()<<endl;
+        cout<< "Number of free blocks:"<<_num_free_blocks()<<endl;
+        cout<< "Number of free bytes:"<<_num_free_blocks()<<endl;
+        cout<< "========================"<<endl;
         currBlock=currBlock->next;
     }
 }
