@@ -22,12 +22,12 @@ struct MallocMetadata {
 struct ListOfMallocMetadata{
     size_t totalAllocatedBlocks;
     size_t totalAllocatedBytes;
-    size_t numberOfBlocksInUse;
-    size_t numberOfBytesInUse;
+    size_t numberOfFreeBlocks;
+    size_t numberOfFreeBytes;
     MallocMetadata* firstBlock;
     MallocMetadata* lastBlock;
 
-    ListOfMallocMetadata():totalAllocatedBlocks(0),totalAllocatedBytes(0),numberOfBlocksInUse(0),numberOfBytesInUse(0){}
+    ListOfMallocMetadata():totalAllocatedBlocks(0),totalAllocatedBytes(0),numberOfFreeBlocks(0),numberOfFreeBytes(0){}
 };
 
 
@@ -73,8 +73,6 @@ void* smalloc(size_t size){
         firstMeta->is_free=false;
         listOfBlocks.totalAllocatedBlocks++;
         listOfBlocks.totalAllocatedBytes=size;
-        listOfBlocks.numberOfBlocksInUse++;
-        listOfBlocks.numberOfBytesInUse=size;
         listOfBlocks.firstBlock=firstMeta;
         listOfBlocks.lastBlock=firstMeta;
         return (void*)(firstMeta+1);
@@ -108,8 +106,6 @@ void* smalloc(size_t size){
         finalLinkedBlock->next=newMeta;
         listOfBlocks.totalAllocatedBlocks++;
         listOfBlocks.totalAllocatedBytes+=size;
-        listOfBlocks.numberOfBlocksInUse++;
-        listOfBlocks.numberOfBytesInUse+=size;
         listOfBlocks.lastBlock=newMeta;
 
         return (void*)(newMeta+1);
@@ -154,6 +150,8 @@ void sfree(void* p){
             listOfBlocks.lastBlock=(((MallocMetadata*)p-1)->prev);
 
         listOfBlocks.totalAllocatedBlocks-=2;
+        listOfBlocks.numberOfFreeBlocks--;
+        listOfBlocks.numberOfFreeBytes+=((MallocMetadata*)p-1)->size+2*(sizeof(MallocMetadata));
 
 
     //only higher neighbor is free
@@ -172,6 +170,7 @@ void sfree(void* p){
             listOfBlocks.lastBlock=((MallocMetadata*)p-1);
 
         listOfBlocks.totalAllocatedBlocks--;
+        listOfBlocks.numberOfFreeBytes+= ((MallocMetadata*)p-1)->size+sizeof(MallocMetadata);
 
 
         //only lower neighbor is free
@@ -194,8 +193,8 @@ void sfree(void* p){
         ((MallocMetadata*)p-1)->is_free=true;
     }
 
-    listOfBlocks.numberOfBlocksInUse--;
-    listOfBlocks.numberOfBytesInUse-=((MallocMetadata*)p-1)->size;
+    listOfBlocks.numberOfFreeBlocks++;
+    listOfBlocks.numberOfFreeBytes+=((MallocMetadata*)p-1)->size+sizeof(MallocMetadata);
 
 
 }
@@ -220,11 +219,11 @@ void* srealloc(void* oldp,size_t size){
 }
 
 size_t _num_free_blocks(){
-return listOfBlocks.totalAllocatedBlocks-listOfBlocks.numberOfBlocksInUse;
+return listOfBlocks.totalAllocatedBlocks-listOfBlocks.numberOfFreeBlocks;
 }
 
 size_t _num_free_bytes(){
-return listOfBlocks.totalAllocatedBytes-listOfBlocks.numberOfBytesInUse;
+return listOfBlocks.totalAllocatedBytes-listOfBlocks.numberOfFreeBytes;
 }
 
 size_t _num_allocated_blocks(){
@@ -240,7 +239,7 @@ size_t _size_meta_data(){
 }
 
 size_t _num_meta_data_bytes(){
-    return (listOfBlocks.numberOfBlocksInUse)*(_size_meta_data());
+    return (listOfBlocks.totalAllocatedBlocks)*(_size_meta_data());
 }
 
 void printAllMetaBlocks(){
