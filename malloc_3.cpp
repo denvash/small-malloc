@@ -32,6 +32,7 @@ struct ListOfMallocMetadata{
 
 
 static ListOfMallocMetadata listOfBlocks;
+//ListOfMallocMetadata* listOfBlocks={};
 
 void* splitBlock(void* blockAdress,size_t leastSignificantSize){
     MallocMetadata* leastSignificantMeta=(MallocMetadata*)blockAdress;
@@ -148,11 +149,13 @@ void* srealloc(void* oldp,size_t size){
     if(((MallocMetadata*)oldp-1)->size>=size)
         return oldp;
     else{
+        sfree(oldp);
         void* newBlockAdress=smalloc(size);
         if(!newBlockAdress)
             return NULL;
+
         memcpy(newBlockAdress,oldp,((MallocMetadata*)oldp-1)->size);
-        sfree(oldp);
+
         return newBlockAdress;
     }
 }
@@ -190,8 +193,10 @@ void printAllMetaBlocks(){
         cout<< "Number of Total allocted blocks:"<<_num_allocated_blocks()<<endl;
         cout<< "Number of Total allocated bytes:"<<_num_allocated_bytes()<<endl;
         cout<< "Number of free blocks:"<<_num_free_blocks()<<endl;
-        cout<< "Number of free bytes:"<<_num_free_blocks()<<endl;
+        cout<< "Number of free bytes:"<<_num_free_bytes()<<endl;
+        cout<< "Adress of static list:"<<&listOfBlocks<<endl;
         cout<< "========================"<<endl;
         currBlock=currBlock->next;
     }
+    cout<<"///"<<endl;
 }
