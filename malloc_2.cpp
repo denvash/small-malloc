@@ -51,7 +51,7 @@ size_t _size_meta_data() {
 }
 
 size_t _num_meta_data_bytes() {
-    return (listOfBlocks.numberOfBlocksInUse) * (_size_meta_data());
+    return _num_allocated_blocks() * _size_meta_data();
 }
 
 void *getData(MallocMetadata *metaData) {
@@ -89,26 +89,33 @@ void *smalloc(size_t size) {
     } else {
 
         auto currBlock = listOfBlocks.firstBlock;
-        MallocMetadata *finalLinkedBlock;
+        MallocMetadata *finalBlock = nullptr;
 
         while (currBlock != nullptr) {
-            if (currBlock->size >= size && currBlock->is_free)
+            if (currBlock->size >= size && currBlock->is_free) {
+                currBlock->is_free = false;
+                listOfBlocks.numberOfBlocksInUse++;
+                listOfBlocks.numberOfBytesInUse += currBlock->size;
                 return getData(currBlock);
-            if (!(currBlock->next))
-                finalLinkedBlock = currBlock;
+            }
+            if (!(currBlock->next)) {
+                finalBlock = currBlock;
+            }
             currBlock = currBlock->next;
         }
 
         // didn't find proper block,need to allocate
         void *newBlockAddress = sbrk(_size_meta_data() + size);
-        if (newBlockAddress == ALLOCATION_ERROR)
+        if (newBlockAddress == ALLOCATION_ERROR) {
             return nullptr;
+        }
+
         auto newMeta = (MallocMetadata *) newBlockAddress;
         newMeta->size = size;
         newMeta->is_free = false;
 
-        newMeta->prev = finalLinkedBlock;
-        finalLinkedBlock->next = newMeta;
+        newMeta->prev = finalBlock;
+        finalBlock->next = newMeta;
 
         listOfBlocks.totalAllocatedBlocks++;
         listOfBlocks.totalAllocatedBytes += size;
