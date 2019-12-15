@@ -320,17 +320,15 @@ void *srealloc(void *oldp, size_t size) {
     if (oldMetaData->size >= size)
         return oldp;
     else {
-        if (isWildernessBlockExists(size)) {
-            auto lastBlock = listOfBlocks.lastBlock;
+        auto lastBlock = listOfBlocks.lastBlock;
 
-            if (lastBlock != oldp) {
-                memcpy(lastBlock, oldp, oldMetaData->size);
-                lastBlock->is_free = false;
-                sfree(oldp);
-            }
+        if (oldMetaData==lastBlock) {
             lastBlock->size = size;
-            listOfBlocks.numberOfFreeBlocks--;
-            listOfBlocks.numberOfFreeBytes -= lastBlock->size;
+//            listOfBlocks.numberOfFreeBlocks--;
+//            listOfBlocks.numberOfFreeBytes -= lastBlock->size;
+            size_t diffBytes=size-lastBlock->size;
+                if(sbrk(diffBytes)==ALLOCATION_ERROR)
+                    return nullptr;
             return getData(lastBlock);
         } // try to merge with higher address
         else {
