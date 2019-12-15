@@ -1,7 +1,3 @@
-//
-// Created by student on 12/9/19.
-//
-
 #ifndef WET2_MALLOC_2_H
 #define WET2_MALLOC_2_H
 #include <cstdlib>
@@ -18,7 +14,6 @@ void* srealloc(void* oldp,size_t size);
 size_t _num_free_blocks();
 
 size_t _num_free_bytes();
-
 
 size_t _num_allocated_blocks();
 
