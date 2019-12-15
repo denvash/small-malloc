@@ -162,14 +162,18 @@ void *smalloc(size_t size) {
         MallocMetadata *finalLinkedBlock;
 
         while (currBlock != nullptr) {
-            if (currBlock->size >= size && currBlock->is_free) {
+            if (size <= currBlock->size && currBlock->is_free) {
 
                 // Keep the sign, don't use size_t, use int instead
                 int diff = currBlock->size - size - _size_meta_data();
                 if (diff >= 128)
                     return splitBlock(currBlock, size);
-                else
+                else {
+                    currBlock->is_free = false;
+                    listOfBlocks.numberOfFreeBlocks--;
+                    listOfBlocks.numberOfFreeBytes -= currBlock->size;
                     return getData(currBlock);
+                }
             }
 
             if (!(currBlock->next))
@@ -281,7 +285,7 @@ void sfree(void *p) {
     } else {
         metaData->is_free = true;
         listOfBlocks.numberOfFreeBlocks++;
-        listOfBlocks.numberOfFreeBytes += metaData->size ;
+        listOfBlocks.numberOfFreeBytes += metaData->size;
     }
 
 

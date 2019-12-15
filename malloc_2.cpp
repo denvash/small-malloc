@@ -92,7 +92,7 @@ void *smalloc(size_t size) {
         MallocMetadata *finalBlock = nullptr;
 
         while (currBlock != nullptr) {
-            if (currBlock->size >= size && currBlock->is_free) {
+            if (size <= currBlock->size && currBlock->is_free) {
                 currBlock->is_free = false;
                 listOfBlocks.numberOfBlocksInUse++;
                 listOfBlocks.numberOfBytesInUse += currBlock->size;
