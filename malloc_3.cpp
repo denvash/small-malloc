@@ -156,13 +156,20 @@ void *smalloc(size_t size) {
             auto isEnoughMemory = size <= lastBlock->size;
 
             // need exactly size_t type for sbrk
-            size_t bytesDiff = size - lastBlock->size;
+            size_t bytesDiff = abs(long(size - lastBlock->size));
 
-            if (!isEnoughMemory) {
+            if (isEnoughMemory) {
+
+                int diff = lastBlock->size - size - _size_meta_data();
+                if (diff >= 128) {
+                    // numberOfFreeBytes & totalAllocatedBlocks called within splitBlock
+                    return splitBlock(lastBlock, size);
+                }
+            } else {
                 lastBlock->size = size;
-                if (sbrk(bytesDiff) == ALLOCATION_ERROR)
+                if (sbrk(bytesDiff) == ALLOCATION_ERROR) {
                     return nullptr;
-
+                }
                 listOfBlocks.totalAllocatedBytes += bytesDiff;
             }
 
