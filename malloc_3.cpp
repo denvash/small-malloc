@@ -1,260 +1,269 @@
 #include <iostream>
 #include <unistd.h>
 #include <cmath>
-#include <stdio.h>
-#include <string.h>
+#include <cstring>
 #include "malloc_2.h"
-#include <stddef.h>
+#include "MallocMetaData.h"
+#include <cstddef>
+
 using namespace std;
 
+void *splitBlock(void *blockAddress, size_t leastSignificantSize) {
+    auto leastSignificantMeta = (MallocMetadata *) blockAddress;
+    size_t mostSignificantSize = leastSignificantMeta->size - leastSignificantSize - _size_meta_data();
 
+    leastSignificantMeta->size = leastSignificantSize;
+    leastSignificantMeta->is_free = false;
 
+    void *splittedBlock = (void *) ((char *) (leastSignificantMeta + 1) + leastSignificantSize);
+    auto mostSignificantMeta = (MallocMetadata *) splittedBlock;
 
-struct MallocMetadata {
-    size_t size;
-    bool is_free;
-    MallocMetadata* next;
-    MallocMetadata* prev;
+    mostSignificantMeta->size = mostSignificantSize;
+    mostSignificantMeta->is_free = true;
+    mostSignificantMeta->prev = leastSignificantMeta;
 
-    MallocMetadata(size_t newSize,MallocMetadata** prevData):size(newSize),is_free(false),next(NULL),prev(*prevData){}
-};
+    if (!leastSignificantMeta->next) {
+        leastSignificantMeta->next = mostSignificantMeta;
+        listOfBlocks.lastBlock = mostSignificantMeta;
+    } else {
+        auto tempMeta = leastSignificantMeta->next;
+        leastSignificantMeta->next = mostSignificantMeta;
+        mostSignificantMeta->next = tempMeta;
+        tempMeta->prev = mostSignificantMeta;
+    }
+    return blockAddress;
+}
 
-struct ListOfMallocMetadata{
-    size_t totalAllocatedBlocks;
-    size_t totalAllocatedBytes;
-    size_t numberOfFreeBlocks;
-    size_t numberOfFreeBytes;
-    MallocMetadata* firstBlock;
-    MallocMetadata* lastBlock;
+bool isWildernessBlockExists(size_t requestedSize) {
+    auto last = listOfBlocks.lastBlock;
+    auto first = listOfBlocks.firstBlock;
 
-    ListOfMallocMetadata():totalAllocatedBlocks(0),totalAllocatedBytes(0),numberOfFreeBlocks(0),numberOfFreeBytes(0){}
-};
+    while (first != last) {
+        if (first->is_free && requestedSize <= first->size)
+            return false;
 
-
-static ListOfMallocMetadata listOfBlocks;
-//ListOfMallocMetadata* listOfBlocks={};
-
-void* splitBlock(void* blockAdress,size_t leastSignificantSize){
-    MallocMetadata* leastSignificantMeta=(MallocMetadata*)blockAdress;
-    int mostSignificantSize=leastSignificantMeta->size-leastSignificantSize-sizeof(MallocMetadata);
-    leastSignificantMeta->size=leastSignificantSize;
-    leastSignificantMeta->is_free=false;
-
-    void* splittedBlock=(void*)((char*)(leastSignificantMeta+1)+leastSignificantSize);
-    MallocMetadata* mostSignificantMeta=(MallocMetadata*)splittedBlock;
-    mostSignificantMeta->size=mostSignificantSize;
-    mostSignificantMeta->is_free=true;
-    mostSignificantMeta->prev=leastSignificantMeta;
-
-    if(!leastSignificantMeta->next){
-        leastSignificantMeta->next=mostSignificantMeta;
-        listOfBlocks.lastBlock=mostSignificantMeta;
-    }else{
-        MallocMetadata* tempMeta=leastSignificantMeta->next;
-        leastSignificantMeta->next=mostSignificantMeta;
-        mostSignificantMeta->next=tempMeta;
-        tempMeta->prev=mostSignificantMeta;
+        first = first->next;
     }
 
-    return blockAdress;
+    return last->is_free;
 }
-void* smalloc(size_t size){
-    if(size==0 || size>pow(10,8))
-        return NULL;
 
-//first block allocation
-    if(!listOfBlocks.totalAllocatedBlocks){
-        void* firstBlockAdress=sbrk(sizeof(MallocMetadata)+size);
-        if(firstBlockAdress==(void*)(-1))
-            return NULL;
+void *smalloc(size_t size) {
+    if (size == 0 || size > pow(10, 8))
+        return nullptr;
 
-        MallocMetadata* firstMeta=(MallocMetadata*)firstBlockAdress;
-        firstMeta->size=size;
-        firstMeta->is_free=false;
+    // first block allocation
+    if (!listOfBlocks.totalAllocatedBlocks) {
+        void *firstBlockAddress = sbrk(_size_meta_data() + size);
+        if (firstBlockAddress == ALLOCATION_ERROR)
+            return nullptr;
+
+        auto firstMeta = (MallocMetadata *) firstBlockAddress;
+        firstMeta->size = size;
+        firstMeta->is_free = false;
         listOfBlocks.totalAllocatedBlocks++;
-        listOfBlocks.totalAllocatedBytes=size;
-        listOfBlocks.firstBlock=firstMeta;
-        listOfBlocks.lastBlock=firstMeta;
-        return (void*)(firstMeta+1);
-    }else{
-        MallocMetadata* currBlock=listOfBlocks.firstBlock;
-        MallocMetadata* finalLinkedBlock;
+        listOfBlocks.totalAllocatedBytes = size;
+        listOfBlocks.firstBlock = firstMeta;
+        listOfBlocks.lastBlock = firstMeta;
+        return getData(firstMeta);
 
-        while(currBlock!=NULL){
-            if(currBlock->size>=size && currBlock->is_free){
-                int diff=currBlock->size-size-sizeof(MallocMetadata);
-                if(diff>=128)
-                    return splitBlock(currBlock,size);
-                else
-                    return (void*)(currBlock+1);
+    } else {
+        if (isWildernessBlockExists(size)) {
+            auto lastBlock = listOfBlocks.lastBlock;
+            if (lastBlock->size < size) {
+                lastBlock->size = size;
             }
-
-            if(!(currBlock->next))
-                finalLinkedBlock=currBlock;
-
-            currBlock=currBlock->next;
+            // TODO: not sure if need to call sbrk()
+            return getData(lastBlock);
         }
 
-        //didn't find proper block,need to allocate
-        void* newBlockAdress=sbrk(sizeof(MallocMetadata)+size);
-        if(newBlockAdress==(void*)(-1))
-            return NULL;
-        MallocMetadata* newMeta=(MallocMetadata*)newBlockAdress;
-        newMeta->size=size;
-        newMeta->is_free=false;
-        newMeta->prev=finalLinkedBlock;
-        finalLinkedBlock->next=newMeta;
-        listOfBlocks.totalAllocatedBlocks++;
-        listOfBlocks.totalAllocatedBytes+=size;
-        listOfBlocks.lastBlock=newMeta;
+        auto currBlock = listOfBlocks.firstBlock;
+        MallocMetadata *finalLinkedBlock;
 
-        return (void*)(newMeta+1);
+        while (currBlock != nullptr) {
+            if (currBlock->size >= size && currBlock->is_free) {
+                size_t diff = currBlock->size - size - _size_meta_data();
+                if (diff >= 128)
+                    return splitBlock(currBlock, size);
+                else
+                    return getData(currBlock);
+            }
+
+            if (!(currBlock->next))
+                finalLinkedBlock = currBlock;
+
+            currBlock = currBlock->next;
+        }
+
+        // didn't find proper block,need to allocate
+        void *newBlockAddress = sbrk(_size_meta_data() + size);
+        if (newBlockAddress == ALLOCATION_ERROR)
+            return nullptr;
+
+        auto newMeta = (MallocMetadata *) newBlockAddress;
+        newMeta->size = size;
+        newMeta->is_free = false;
+
+        newMeta->prev = finalLinkedBlock;
+        finalLinkedBlock->next = newMeta;
+
+        listOfBlocks.totalAllocatedBlocks++;
+        listOfBlocks.totalAllocatedBytes += size;
+        listOfBlocks.lastBlock = newMeta;
+
+        return getData(newMeta);
     }
 
 
 }
 
-void* scalloc(size_t num,size_t size){
-    if(size==0 || size*num>pow(10,8))
-        return NULL;
+void *scalloc(size_t num, size_t size) {
+    if (size == 0 || size * num > pow(10, 8))
+        return nullptr;
 
-    void* newBlockAdress=smalloc(num*size);
-    if(!newBlockAdress)
-        return NULL;
-    memset(newBlockAdress,0,num*size);
-    return newBlockAdress;
+    void *newBlockAddress = smalloc(num * size);
 
+    if (!newBlockAddress)
+        return nullptr;
+
+    memset(newBlockAddress, 0, num * size);
+    return newBlockAddress;
 }
 
-void sfree(void* p){
-    if(!p)
-        return;
-    else if(((MallocMetadata*)p-1)->is_free)
+void sfree(void *p) {
+    if (!p)
         return;
 
-    //both neighbors are free
-    if(((MallocMetadata*)p-1)->next && (((MallocMetadata*)p-1)->next)->is_free &&
-        ((MallocMetadata*)p-1)->prev && (((MallocMetadata*)p-1)->prev)->is_free){
+    auto metaData = getMetaData(p);
 
-        MallocMetadata* tempMeta=(((MallocMetadata*)p-1)->next)->next;
+    if (metaData->is_free)
+        return;
 
-        size_t totalNewFreeBlockSize=(((MallocMetadata*)p-1)->prev)->size+
-                ((MallocMetadata*)p-1)->size+
-                (((MallocMetadata*)p-1)->next)->size +2*(sizeof(MallocMetadata));
-        (((MallocMetadata*)p-1)->prev)->size=totalNewFreeBlockSize;
-        (((MallocMetadata*)p-1)->prev)->next=tempMeta;
+    // both neighbors are free
+    if (metaData->next && (metaData->next)->is_free &&
+        metaData->prev && metaData->prev->is_free) {
 
-        if(tempMeta)
-            tempMeta->prev=(((MallocMetadata*)p-1)->prev);
+        auto *tempMeta = (metaData->next)->next;
+
+        size_t totalNewFreeBlockSize = (metaData->prev)->size +
+                                       (metaData->size +
+                                        (metaData->next)->size + 2 * _size_meta_data());
+
+        (metaData->prev)->size = totalNewFreeBlockSize;
+        (metaData->prev)->next = tempMeta;
+
+        if (tempMeta)
+            tempMeta->prev = metaData->prev;
         else
-            listOfBlocks.lastBlock=(((MallocMetadata*)p-1)->prev);
+            listOfBlocks.lastBlock = (metaData->prev);
 
-        listOfBlocks.totalAllocatedBlocks-=2;
+        listOfBlocks.totalAllocatedBlocks -= 2;
         listOfBlocks.numberOfFreeBlocks--;
-        listOfBlocks.numberOfFreeBytes+=((MallocMetadata*)p-1)->size+2*(sizeof(MallocMetadata));
+        listOfBlocks.numberOfFreeBytes += metaData->size + 2 * _size_meta_data();
 
 
-    //only higher neighbor is free
-    }else if(((MallocMetadata*)p-1)->next && (((MallocMetadata*)p-1)->next)->is_free){
-        MallocMetadata* tempMeta=(((MallocMetadata*)p-1)->next)->next;
-        size_t totalNewFreeBlockSize=((MallocMetadata*)p-1)->size+
-                                     (((MallocMetadata*)p-1)->next)->size +(sizeof(MallocMetadata));
+        //only higher neighbor is free
+    } else if (metaData->next && (metaData->next)->is_free) {
+        auto tempMeta = (metaData->next)->next;
+        size_t totalNewFreeBlockSize = (metaData->size +
+                                        (metaData->next)->size + _size_meta_data());
 
-        ((MallocMetadata*)p-1)->size=totalNewFreeBlockSize;
-        ((MallocMetadata*)p-1)->is_free=true;
-        ((MallocMetadata*)p-1)->next=tempMeta;
+        metaData->size = totalNewFreeBlockSize;
+        metaData->is_free = true;
+        metaData->next = tempMeta;
 
-        if(tempMeta)
-            tempMeta->prev=((MallocMetadata*)p-1);
+        if (tempMeta)
+            tempMeta->prev = metaData;
         else
-            listOfBlocks.lastBlock=((MallocMetadata*)p-1);
+            listOfBlocks.lastBlock = metaData;
 
         listOfBlocks.totalAllocatedBlocks--;
-        listOfBlocks.numberOfFreeBytes+= ((MallocMetadata*)p-1)->size+sizeof(MallocMetadata);
+        listOfBlocks.numberOfFreeBytes += metaData->size + _size_meta_data();
 
 
         //only lower neighbor is free
-    }else if(((MallocMetadata*)p-1)->prev && (((MallocMetadata*)p-1)->prev)->is_free){
-        MallocMetadata* tempMeta=((MallocMetadata*)p-1)->next;
-        size_t totalNewFreeBlockSize=((MallocMetadata*)p-1)->size+
-                                     (((MallocMetadata*)p-1)->prev)->size +(sizeof(MallocMetadata));
+    } else if (metaData->prev && (metaData->prev)->is_free) {
+        auto tempMeta = metaData->next;
+        size_t totalNewFreeBlockSize = metaData->size +
+                                       (metaData->prev)->size + _size_meta_data();
 
-        (((MallocMetadata*)p-1)->prev)->size=totalNewFreeBlockSize;
-        (((MallocMetadata*)p-1)->prev)->next=tempMeta;
+        (metaData->prev)->size = totalNewFreeBlockSize;
+        (metaData->prev)->next = tempMeta;
 
-        if(tempMeta)
-            tempMeta->prev=((MallocMetadata*)p-1)->prev;
+        if (tempMeta)
+            tempMeta->prev = metaData->prev;
         else
-            listOfBlocks.lastBlock=((MallocMetadata*)p-1)->prev;
+            listOfBlocks.lastBlock = metaData->prev;
 
         listOfBlocks.totalAllocatedBlocks--;
-     //no merge with neighbors
-    }else{
-        ((MallocMetadata*)p-1)->is_free=true;
+        //no merge with neighbors
+    } else {
+        metaData->is_free = true;
     }
 
     listOfBlocks.numberOfFreeBlocks++;
-    listOfBlocks.numberOfFreeBytes+=((MallocMetadata*)p-1)->size+sizeof(MallocMetadata);
-
-
+    listOfBlocks.numberOfFreeBytes += metaData->size + _size_meta_data();
 }
 
-void* srealloc(void* oldp,size_t size){
-    if(size==0 || size>pow(10,8))
-        return NULL;
-    if(!oldp)
+void *srealloc(void *oldp, size_t size) {
+    if (size == 0 || size > pow(10, 8))
+        return nullptr;
+
+    if (!oldp)
         return smalloc(size);
-    if(((MallocMetadata*)oldp-1)->size>=size)
+
+    auto oldMetaData = getMetaData(oldp);
+
+    if (oldMetaData->size >= size)
         return oldp;
-    else{
+    else {
         sfree(oldp);
-        void* newBlockAdress=smalloc(size);
-        if(!newBlockAdress)
-            return NULL;
+        void *newBlockAddress = smalloc(size);
+        if (!newBlockAddress)
+            return nullptr;
 
-        memcpy(newBlockAdress,oldp,((MallocMetadata*)oldp-1)->size);
-
-        return newBlockAdress;
+        memcpy(newBlockAddress, oldp, oldMetaData->size);
+        return newBlockAddress;
     }
 }
 
-size_t _num_free_blocks(){
-return listOfBlocks.totalAllocatedBlocks-listOfBlocks.numberOfFreeBlocks;
+size_t _num_free_blocks() {
+    return listOfBlocks.totalAllocatedBlocks - listOfBlocks.numberOfFreeBlocks;
 }
 
-size_t _num_free_bytes(){
-return listOfBlocks.totalAllocatedBytes-listOfBlocks.numberOfFreeBytes;
+size_t _num_free_bytes() {
+    return listOfBlocks.totalAllocatedBytes - listOfBlocks.numberOfFreeBytes;
 }
 
-size_t _num_allocated_blocks(){
-return listOfBlocks.totalAllocatedBlocks;
+size_t _num_allocated_blocks() {
+    return listOfBlocks.totalAllocatedBlocks;
 }
 
-size_t _num_allocated_bytes(){
-return listOfBlocks.totalAllocatedBytes;
+size_t _num_allocated_bytes() {
+    return listOfBlocks.totalAllocatedBytes;
 }
 
-size_t _size_meta_data(){
+size_t _size_meta_data() {
     return sizeof(MallocMetadata);
 }
 
-size_t _num_meta_data_bytes(){
-    return (listOfBlocks.totalAllocatedBlocks)*(_size_meta_data());
+size_t _num_meta_data_bytes() {
+    return (listOfBlocks.totalAllocatedBlocks) * (_size_meta_data());
 }
 
-void printAllMetaBlocks(){
-    MallocMetadata* currBlock=listOfBlocks.firstBlock;
-    while(currBlock!=NULL){
-        cout<< "curr Meta block adress:"<<currBlock<<endl;
-        cout<< "curr Meta block size:"<<currBlock->size<<endl;
-        cout<< "curr Meta block free?:"<<(bool)currBlock->is_free<<endl;
-        cout<< "Number of Total allocted blocks:"<<_num_allocated_blocks()<<endl;
-        cout<< "Number of Total allocated bytes:"<<_num_allocated_bytes()<<endl;
-        cout<< "Number of free blocks:"<<_num_free_blocks()<<endl;
-        cout<< "Number of free bytes:"<<_num_free_bytes()<<endl;
-        cout<< "Adress of static list:"<<&listOfBlocks<<endl;
-        cout<< "========================"<<endl;
-        currBlock=currBlock->next;
+void printAllMetaBlocks() {
+    auto currBlock = listOfBlocks.firstBlock;
+    while (currBlock != nullptr) {
+        cout << "curr Meta block address:" << currBlock << endl;
+        cout << "curr Meta block size:" << currBlock->size << endl;
+        cout << "curr Meta block free?:" << (bool) currBlock->is_free << endl;
+        cout << "Number of Total allocated blocks:" << _num_allocated_blocks() << endl;
+        cout << "Number of Total allocated bytes:" << _num_allocated_bytes() << endl;
+        cout << "Number of free blocks:" << _num_free_blocks() << endl;
+        cout << "Number of free bytes:" << _num_free_bytes() << endl;
+        cout << "Address of static list:" << &listOfBlocks << endl;
+        cout << "========================" << endl;
+        currBlock = currBlock->next;
     }
-    cout<<"///"<<endl;
+    cout << "///" << endl;
 }

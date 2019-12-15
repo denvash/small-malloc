@@ -1,16 +1,16 @@
-#include <cstdlib>
 #include <cmath>
-#include <iostream>
+#include <unistd.h>
 
-void* smalloc(size_t size){
-    if(size==0 || size>pow(10,8))
-        return NULL;
+#define ALLOCATION_ERROR ((void*) (-1))
 
-    void* newBlock=sbrk(size);
+void *smalloc(size_t size) {
+    if (size == 0 || size > pow(10, 8))
+        return nullptr;
 
-    if(newBlock==(void*)(-1))
-        return NULL;
+    void *newBlock = sbrk(size);
+
+    if (newBlock == ALLOCATION_ERROR)
+        return nullptr;
     else
         return newBlock;
-
 }
