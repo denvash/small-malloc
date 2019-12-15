@@ -122,7 +122,6 @@ bool isWildernessBlockExists(size_t requestedSize) {
     while (first != last) {
         if (first->is_free && requestedSize <= first->size)
             return false;
-
         first = first->next;
     }
 
@@ -151,10 +150,19 @@ void *smalloc(size_t size) {
     } else {
         if (isWildernessBlockExists(size)) {
             auto lastBlock = listOfBlocks.lastBlock;
-            if (lastBlock->size < size) {
+
+            listOfBlocks.numberOfFreeBlocks--;
+            lastBlock->is_free = false;
+
+            // TODO: Change program break
+            auto isEnoughMemory = size <= lastBlock->size;
+            auto bytesDiff = size - lastBlock->size;
+            if (!isEnoughMemory) {
                 lastBlock->size = size;
+                listOfBlocks.totalAllocatedBytes += bytesDiff;
             }
-            // TODO: not sure if need to call sbrk()
+
+            listOfBlocks.numberOfFreeBytes -= lastBlock->size + (isEnoughMemory ? 0 : bytesDiff);
             return getData(lastBlock);
         }
 
