@@ -154,8 +154,12 @@ void *smalloc(size_t size) {
 
             if (lastBlock->size < size) {
                 lastBlock->size = size;
+                listOfBlocks.totalAllocatedBytes+=(size-lastBlock->size);
             }
+
             lastBlock->is_free=false;
+            listOfBlocks.numberOfFreeBlocks--;
+            listOfBlocks.numberOfFreeBytes-=lastBlock->size;
             // TODO: not sure if need to call sbrk()
             //no need
             return getData(lastBlock);
