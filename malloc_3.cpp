@@ -111,6 +111,7 @@ void *splitBlock(void *blockAddress, size_t leastSignificantSize) {
     }
     listOfBlocks.totalAllocatedBlocks++;
     listOfBlocks.numberOfFreeBytes -= (leastSignificantSize + _size_meta_data());
+    listOfBlocks.totalAllocatedBytes -= _size_meta_data();
     return blockAddress;
 }
 
@@ -314,31 +315,30 @@ void *srealloc(void *oldp, size_t size) {
 
     auto oldMetaData = getMetaData(oldp);
 
-    if (oldMetaData->size >= size){
+    if (oldMetaData->size >= size) {
         int diff = oldMetaData->size - size - _size_meta_data();
         if (diff >= 128) {
             // numberOfFreeBytes & totalAllocatedBlocks called within splitBlock
             return splitBlock(oldMetaData, size);
-        }else{
-            if(oldMetaData->is_free){
-                oldMetaData->is_free= false;
+        } else {
+            if (oldMetaData->is_free) {
+                oldMetaData->is_free = false;
                 listOfBlocks.numberOfFreeBlocks--;
-                listOfBlocks.numberOfFreeBytes-=oldMetaData->size;
+                listOfBlocks.numberOfFreeBytes -= oldMetaData->size;
             }
             return oldp;
         }
-    }
-    else {
+    } else {
         auto lastBlock = listOfBlocks.lastBlock;
 
-        if (oldMetaData==lastBlock) {
-                lastBlock->size = size;
-                listOfBlocks.numberOfFreeBlocks--;
-                listOfBlocks.numberOfFreeBytes -= lastBlock->size;
-                size_t diffBytes = size - lastBlock->size;
-                if (sbrk(diffBytes) == ALLOCATION_ERROR)
-                    return nullptr;
-                return getData(lastBlock);
+        if (oldMetaData == lastBlock) {
+            lastBlock->size = size;
+            listOfBlocks.numberOfFreeBlocks--;
+            listOfBlocks.numberOfFreeBytes -= lastBlock->size;
+            size_t diffBytes = size - lastBlock->size;
+            if (sbrk(diffBytes) == ALLOCATION_ERROR)
+                return nullptr;
+            return getData(lastBlock);
 
         }// try to merge with higher address
         else {
