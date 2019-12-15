@@ -271,7 +271,6 @@ void sfree(void *p) {
         size_t totalNewFreeBlockSize = (metaData->size +
                                         (metaData->next)->size + _size_meta_data());
 
-        metaData->size = totalNewFreeBlockSize;
         metaData->is_free = true;
         metaData->next = tempMeta;
 
@@ -283,6 +282,8 @@ void sfree(void *p) {
         listOfBlocks.totalAllocatedBlocks--;
         listOfBlocks.totalAllocatedBytes += _size_meta_data();
         listOfBlocks.numberOfFreeBytes += metaData->size + _size_meta_data();
+        metaData->size = totalNewFreeBlockSize;
+
         //only lower neighbor is free
     } else if (metaData->prev && (metaData->prev)->is_free) {
         auto tempMeta = metaData->next;
