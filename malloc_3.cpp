@@ -35,6 +35,52 @@ struct ListOfMallocMetadata {
 
 static ListOfMallocMetadata listOfBlocks = ListOfMallocMetadata();
 
+size_t _num_allocated_blocks() {
+    return listOfBlocks.totalAllocatedBlocks;
+}
+
+size_t _num_allocated_bytes() {
+    return listOfBlocks.totalAllocatedBytes;
+}
+
+size_t _num_free_blocks() {
+    return listOfBlocks.numberOfFreeBlocks;
+}
+
+size_t _num_free_bytes() {
+    return listOfBlocks.numberOfFreeBytes;
+
+}
+
+size_t _size_meta_data() {
+    return sizeof(MallocMetadata);
+}
+
+size_t _num_meta_data_bytes() {
+    return _num_allocated_blocks() * (_size_meta_data());
+}
+
+bool sizeInCapacityRange(size_t size) {
+    return size > pow(10, 8);
+}
+
+void printAllMetaBlocks() {
+    auto currBlock = listOfBlocks.firstBlock;
+    while (currBlock != nullptr) {
+        cout << "curr Meta block address:" << currBlock << endl;
+        cout << "curr Meta block size:" << currBlock->size << endl;
+        cout << "curr Meta block free?:" << (bool) currBlock->is_free << endl;
+        cout << "Number of Total allocated blocks:" << _num_allocated_blocks() << endl;
+        cout << "Number of Total allocated bytes:" << _num_allocated_bytes() << endl;
+        cout << "Number of free blocks:" << _num_free_blocks() << endl;
+        cout << "Number of free bytes:" << _num_free_bytes() << endl;
+        cout << "Address of static list:" << &listOfBlocks << endl;
+        cout << "========================" << endl;
+        currBlock = currBlock->next;
+    }
+    cout << "///" << endl;
+}
+
 void *getData(MallocMetadata *metaData) {
     return (void *) (metaData + NEXT_BYTE);
 }
@@ -84,7 +130,7 @@ bool isWildernessBlockExists(size_t requestedSize) {
 }
 
 void *smalloc(size_t size) {
-    if (size == 0 || size > pow(10, 8))
+    if (size == 0 || sizeInCapacityRange(size))
         return nullptr;
 
     // first block allocation
@@ -153,7 +199,7 @@ void *smalloc(size_t size) {
 }
 
 void *scalloc(size_t num, size_t size) {
-    if (size == 0 || size * num > pow(10, 8))
+    if (size == 0 || sizeInCapacityRange(size * num))
         return nullptr;
 
     void *newBlockAddress = smalloc(num * size);
@@ -241,7 +287,7 @@ void sfree(void *p) {
 }
 
 void *srealloc(void *oldp, size_t size) {
-    if (size == 0 || size > pow(10, 8))
+    if (size == 0 || sizeInCapacityRange(size))
         return nullptr;
 
     if (!oldp)
@@ -260,45 +306,4 @@ void *srealloc(void *oldp, size_t size) {
         memcpy(newBlockAddress, oldp, oldMetaData->size);
         return newBlockAddress;
     }
-}
-
-size_t _num_free_blocks() {
-    return listOfBlocks.totalAllocatedBlocks - listOfBlocks.numberOfFreeBlocks;
-}
-
-size_t _num_free_bytes() {
-    return listOfBlocks.totalAllocatedBytes - listOfBlocks.numberOfFreeBytes;
-}
-
-size_t _num_allocated_blocks() {
-    return listOfBlocks.totalAllocatedBlocks;
-}
-
-size_t _num_allocated_bytes() {
-    return listOfBlocks.totalAllocatedBytes;
-}
-
-size_t _size_meta_data() {
-    return sizeof(MallocMetadata);
-}
-
-size_t _num_meta_data_bytes() {
-    return (listOfBlocks.totalAllocatedBlocks) * (_size_meta_data());
-}
-
-void printAllMetaBlocks() {
-    auto currBlock = listOfBlocks.firstBlock;
-    while (currBlock != nullptr) {
-        cout << "curr Meta block address:" << currBlock << endl;
-        cout << "curr Meta block size:" << currBlock->size << endl;
-        cout << "curr Meta block free?:" << (bool) currBlock->is_free << endl;
-        cout << "Number of Total allocated blocks:" << _num_allocated_blocks() << endl;
-        cout << "Number of Total allocated bytes:" << _num_allocated_bytes() << endl;
-        cout << "Number of free blocks:" << _num_free_blocks() << endl;
-        cout << "Number of free bytes:" << _num_free_bytes() << endl;
-        cout << "Address of static list:" << &listOfBlocks << endl;
-        cout << "========================" << endl;
-        currBlock = currBlock->next;
-    }
-    cout << "///" << endl;
 }

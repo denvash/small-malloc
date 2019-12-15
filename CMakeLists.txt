@@ -24,3 +24,9 @@ add_executable(testMain2
         malloc_2.h
         malloc_2.cpp
         )
+
+add_executable(testMain3
+        tests/mainTest3.cpp
+        malloc_3.h
+        malloc_3.cpp
+        )

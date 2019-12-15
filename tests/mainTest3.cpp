@@ -1,20 +1,18 @@
-#include <iostream>
-#include <assert.h>
+#include <cassert>
 #include "../malloc_3.h"
 
-struct TestData
-{
+struct TestData {
     size_t freeBlocks;
     size_t freeBytes;
     size_t allocBlocks;
     size_t allocBytes;
-    size_t metaBytes(){return metaSize*allocBlocks;};
+
+    size_t metaBytes() { return metaSize * allocBlocks; };
     size_t metaSize;
 
 };
 
-void assertAll(TestData& data)
-{
+void assertAll(TestData &data) {
     TestData realData;
     realData.freeBlocks = _num_free_blocks();
     realData.freeBytes = _num_free_bytes();
@@ -37,7 +35,7 @@ int main() {
     data.allocBlocks = 0;
     data.allocBytes = 0;
 
-    size_t mSz = _size_meta_data();
+//    size_t mSz = _size_meta_data();
 
     //basic smalloc
     //allocate 0
@@ -47,15 +45,17 @@ int main() {
     smalloc(100000000000);
     assertAll(data);
     //allocate 14 and use all 14 bytes
-    char* c1 = (char*)smalloc(14);
+    char *c1 = (char *) smalloc(14);
     data.allocBytes += 14;
     data.allocBlocks += 1;
     assertAll(data);
-    for(int i = 0 ; i < 14 ; ++i)
+    for (int i = 0; i < 14; ++i)
         c1[i] = 30;
 
     //basic free
     //free the previous 14 bytes
+
+    // TODO: CONTINUE FROM HERE
     sfree(c1);
     data.freeBlocks += 1;
     data.freeBytes += 14;
@@ -63,11 +63,11 @@ int main() {
 
     //basic scalloc
     //allocate 12 bytes and see if they are reset to 0 (since we are reusing the ones from smalloc)
-    int* arr = (int*)scalloc(3,4);
+    int *arr = (int *) scalloc(3, 4);
     data.freeBlocks -= 1;
     data.freeBytes -= 14;
     assertAll(data);
-    for(int i = 0 ; i < 3 ; ++i)
+    for (int i = 0; i < 3; ++i)
         assert(arr[i] == 0);
 
     //basic realloc
@@ -75,7 +75,7 @@ int main() {
 
     //challenge 1
     //allocate 1000, free and allocate 500 to see if it splits(should)
-    void * p = smalloc(1000);
+    void *p = smalloc(1000);
     data.allocBlocks += 1;
     data.allocBytes += 1000;
     assertAll(data);
@@ -115,9 +115,9 @@ int main() {
 
     //challenge 2
     //allocate 500,1000,500
-    void* p1;
-    void* p2;
-    void* p3;
+    void *p1;
+    void *p2;
+    void *p3;
 
     p1 = smalloc(500);
     p2 = smalloc(1000);
@@ -146,7 +146,7 @@ int main() {
     sfree(p2);
     sfree(p1);
     data.freeBlocks += 1;
-    data.freeBytes += 2000 + 2*data.metaSize;
+    data.freeBytes += 2000 + 2 * data.metaSize;
     data.allocBlocks -= 1;
     data.allocBytes += data.metaSize;
     assertAll(data);
@@ -168,9 +168,9 @@ int main() {
     sfree(p3);
     sfree(p2);
     data.freeBlocks += 1;
-    data.freeBytes += 400 + 2*data.metaSize;
+    data.freeBytes += 400 + 2 * data.metaSize;
     data.allocBlocks -= 2;
-    data.allocBytes += 2*data.metaSize;
+    data.allocBytes += 2 * data.metaSize;
     assertAll(data);
 
     //allocate 400 to seal up the gap from challenge 2
@@ -202,7 +202,7 @@ int main() {
     //challenge 4
     //allocate 300000
     p = smalloc(300000);
-    data.allocBlocks+=1;
+    data.allocBlocks += 1;
     data.allocBytes += 300000;
     assertAll(data);
 
@@ -215,18 +215,18 @@ int main() {
     //advanced realloc
     //realloc to smaller size
     p = smalloc(1000);
-    data.allocBlocks+=1;
+    data.allocBlocks += 1;
     data.allocBytes += 1000;
 
-    p = srealloc(p,900);
+    p = srealloc(p, 900);
     assertAll(data);
 
     //realloc to original size
-    p = srealloc(p,1000);
+    p = srealloc(p, 1000);
     assertAll(data);
 
     //realloc larger size
-    p = srealloc(p,1200);
+    p = srealloc(p, 1200);
     data.allocBytes += 200;
     assertAll(data);
 
@@ -247,8 +247,8 @@ int main() {
     assertAll(data);
 
     //realloc middle to 150
-    p3 = srealloc(p2,150);
-    data.freeBlocks-= 1;
+    p3 = srealloc(p2, 150);
+    data.freeBlocks -= 1;
     data.freeBytes -= 100;
     data.allocBytes += data.metaSize;
     data.allocBlocks -= 1;
@@ -257,12 +257,12 @@ int main() {
     assert(p3 == p2);
 
     //realloc to 180
-    p2 = srealloc(p2,180);
+    p2 = srealloc(p2, 180);
     assertAll(data);
 
     //realloc to 250
-    p2 = srealloc(p2,250);
-    data.freeBlocks-= 1;
+    p2 = srealloc(p2, 250);
+    data.freeBlocks -= 1;
     data.freeBytes -= 100;
     data.allocBytes += data.metaSize;
     data.allocBlocks -= 1;
@@ -285,7 +285,7 @@ int main() {
     assertAll(data);
 
     //realloc middle to 335 //should be merged
-    srealloc(p2,335);
+    srealloc(p2, 335);
     data.freeBlocks -= 2;
     data.freeBytes = 0;
     data.allocBlocks -= 2;
@@ -311,7 +311,7 @@ int main() {
     assertAll(data);
 
     //realloc to 4000 (should free current, and extend 10 to 4000)
-    p2 = srealloc(p2,4000);
+    p2 = srealloc(p2, 4000);
     data.allocBytes += 3990;
     data.freeBytes += 10;
     assertAll(data);
@@ -353,7 +353,7 @@ int main() {
     assertAll(data);
 
     //realloc 400 to 600 (will take 900, and split)
-    srealloc(p2,600);
+    srealloc(p2, 600);
     data.freeBlocks += 1;
     data.freeBytes += 400 - 600 - data.metaSize;
     data.allocBlocks += 1;
@@ -364,25 +364,25 @@ int main() {
     p = smalloc(300000);
     data.allocBlocks += 1;
     data.allocBytes += 300000;
-    ((char*)p)[100000] = 42;
+    ((char *) p)[100000] = 42;
     assertAll(data);
 
     //realloc to 140000
-    p = srealloc(p,140000);
+    p = srealloc(p, 140000);
     data.allocBytes -= 160000;
-    assert(((char*)p)[100000] == 42);
+    assert(((char *) p)[100000] == 42);
     assertAll(data);
 
     //realloc to 280000
-    p = srealloc(p,280000);
+    p = srealloc(p, 280000);
     data.allocBytes += 140000;
-    assert(((char*)p)[100000] == 42);
+    assert(((char *) p)[100000] == 42);
     assertAll(data);
 
     //realloc to 480000
-    p = srealloc(p,480000);
+    p = srealloc(p, 480000);
     data.allocBytes += 200000;
-    assert(((char*)p)[100000] == 42);
+    assert(((char *) p)[100000] == 42);
     assertAll(data);
 
 

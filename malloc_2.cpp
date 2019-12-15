@@ -62,8 +62,12 @@ MallocMetadata *getMetaData(void *data) {
     return !data ? nullptr : ((MallocMetadata *) data - 1);
 }
 
+bool sizeInCapacityRange(size_t size) {
+    return size > pow(10, 8);
+}
+
 void *smalloc(size_t size) {
-    if (size == 0 || size > pow(10, 8))
+    if (size == 0 || sizeInCapacityRange(size))
         return nullptr;
 
     // first block allocation
@@ -117,7 +121,7 @@ void *smalloc(size_t size) {
 }
 
 void *scalloc(size_t num, size_t size) {
-    if (size == 0 || size * num > pow(10, 8))
+    if (size == 0 || sizeInCapacityRange(size * num))
         return nullptr;
 
     void *newBlockAddress = smalloc(num * size);
@@ -139,7 +143,7 @@ void sfree(void *p) {
 }
 
 void *srealloc(void *oldp, size_t size) {
-    if (size == 0 || size > pow(10, 8))
+    if (size == 0 || sizeInCapacityRange(size))
         return nullptr;
     if (!oldp)
         return smalloc(size);

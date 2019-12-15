@@ -27,6 +27,8 @@ int main() {
     assertAll(0, 0, 3, 15, 3 * mSz, mSz);
     void *p2 = smalloc(342346);
     assertAll(0, 0, 4, 342361, 4 * mSz, mSz);
+
+    // TODO: CONTINUE FROM HERE
     sfree(p2);
     assertAll(1, 342346, 4, 342361, 4 * mSz, mSz);
     p2 = smalloc(3);
