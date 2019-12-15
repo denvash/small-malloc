@@ -122,7 +122,6 @@ bool isWildernessBlockExists(size_t requestedSize) {
     while (first != last) {
         if (first->is_free && requestedSize <= first->size)
             return false;
-
         first = first->next;
     }
 
@@ -151,10 +150,19 @@ void *smalloc(size_t size) {
     } else {
         if (isWildernessBlockExists(size)) {
             auto lastBlock = listOfBlocks.lastBlock;
-            if (lastBlock->size < size) {
+
+            listOfBlocks.numberOfFreeBlocks--;
+            lastBlock->is_free = false;
+
+            // TODO: Change program break
+            auto isEnoughMemory = size <= lastBlock->size;
+            auto bytesDiff = size - lastBlock->size;
+            if (!isEnoughMemory) {
                 lastBlock->size = size;
+                listOfBlocks.totalAllocatedBytes += bytesDiff;
             }
-            // TODO: not sure if need to call sbrk()
+
+            listOfBlocks.numberOfFreeBytes -= lastBlock->size + (isEnoughMemory ? 0 : bytesDiff);
             return getData(lastBlock);
         }
 
@@ -162,14 +170,18 @@ void *smalloc(size_t size) {
         MallocMetadata *finalLinkedBlock;
 
         while (currBlock != nullptr) {
-            if (currBlock->size >= size && currBlock->is_free) {
+            if (size <= currBlock->size && currBlock->is_free) {
 
                 // Keep the sign, don't use size_t, use int instead
                 int diff = currBlock->size - size - _size_meta_data();
                 if (diff >= 128)
                     return splitBlock(currBlock, size);
-                else
+                else {
+                    currBlock->is_free = false;
+                    listOfBlocks.numberOfFreeBlocks--;
+                    listOfBlocks.numberOfFreeBytes -= currBlock->size;
                     return getData(currBlock);
+                }
             }
 
             if (!(currBlock->next))
@@ -281,7 +293,7 @@ void sfree(void *p) {
     } else {
         metaData->is_free = true;
         listOfBlocks.numberOfFreeBlocks++;
-        listOfBlocks.numberOfFreeBytes += metaData->size ;
+        listOfBlocks.numberOfFreeBytes += metaData->size;
     }
 
 
