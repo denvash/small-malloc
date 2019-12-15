@@ -196,13 +196,15 @@ void sfree(void *p) {
             listOfBlocks.lastBlock = metaData->prev;
 
         listOfBlocks.totalAllocatedBlocks--;
+        listOfBlocks.numberOfFreeBytes += metaData->size + _size_meta_data();
+
         //no merge with neighbors
     } else {
         metaData->is_free = true;
+        listOfBlocks.numberOfFreeBlocks++;
+        listOfBlocks.numberOfFreeBytes += metaData->size;
     }
 
-    listOfBlocks.numberOfFreeBlocks++;
-    listOfBlocks.numberOfFreeBytes += metaData->size + _size_meta_data();
 }
 
 void *srealloc(void *oldp, size_t size) {
@@ -232,7 +234,8 @@ size_t _num_free_blocks() {
 }
 
 size_t _num_free_bytes() {
-    return listOfBlocks.totalAllocatedBytes - listOfBlocks.numberOfFreeBytes;
+//    return listOfBlocks.totalAllocatedBytes - listOfBlocks.numberOfFreeBytes;
+    return listOfBlocks.numberOfFreeBytes;
 }
 
 size_t _num_allocated_blocks() {
