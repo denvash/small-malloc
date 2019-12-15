@@ -112,6 +112,8 @@ void *splitBlock(void *blockAddress, size_t leastSignificantSize) {
         mostSignificantMeta->next = tempMeta;
         tempMeta->prev = mostSignificantMeta;
     }
+    listOfBlocks.totalAllocatedBlocks++;
+    listOfBlocks.numberOfFreeBytes-=(leastSignificantSize+ _size_meta_data());
     return blockAddress;
 }
 
@@ -177,6 +179,8 @@ void *smalloc(size_t size) {
                     return splitBlock(currBlock, size);
                 else{
                     currBlock->is_free=false;
+                    listOfBlocks.numberOfFreeBlocks--;
+                    listOfBlocks.numberOfFreeBytes-=currBlock->size;
                     return getData(currBlock);
                 }
             }
