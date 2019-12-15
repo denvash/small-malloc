@@ -9,7 +9,7 @@ void *scalloc(size_t num, size_t size);
 
 void sfree(void *p);
 
-void *srealloc(void *oldp, size_t size);
+void *srealloc(void *oldP, size_t size);
 
 size_t _num_free_blocks();
 

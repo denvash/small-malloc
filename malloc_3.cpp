@@ -154,16 +154,18 @@ void *smalloc(size_t size) {
         if (isWildernessBlockExists(size)) {
             auto lastBlock = listOfBlocks.lastBlock;
 
-            if (lastBlock->size < size) {
+            listOfBlocks.numberOfFreeBlocks--;
+            lastBlock->is_free = false;
+
+            // TODO: Change program break
+            auto isEnoughMemory = size <= lastBlock->size;
+            auto bytesDiff = size - lastBlock->size;
+            if (!isEnoughMemory) {
                 lastBlock->size = size;
-                listOfBlocks.totalAllocatedBytes+=(size-lastBlock->size);
+                listOfBlocks.totalAllocatedBytes += bytesDiff;
             }
 
-            lastBlock->is_free=false;
-            listOfBlocks.numberOfFreeBlocks--;
-            listOfBlocks.numberOfFreeBytes-=lastBlock->size;
-            // TODO: not sure if need to call sbrk()
-            //no need
+            listOfBlocks.numberOfFreeBytes -= lastBlock->size + (isEnoughMemory ? 0 : bytesDiff);
             return getData(lastBlock);
         }
 
@@ -171,7 +173,7 @@ void *smalloc(size_t size) {
         MallocMetadata *finalLinkedBlock;
 
         while (currBlock != nullptr) {
-            if (currBlock->size >= size && currBlock->is_free) {
+            if (size <= currBlock->size && currBlock->is_free) {
 
                 // Keep the sign, don't use size_t, use int instead
                 int diff = currBlock->size - size - _size_meta_data();
@@ -294,7 +296,7 @@ void sfree(void *p) {
     } else {
         metaData->is_free = true;
         listOfBlocks.numberOfFreeBlocks++;
-        listOfBlocks.numberOfFreeBytes += metaData->size ;
+        listOfBlocks.numberOfFreeBytes += metaData->size;
     }
 
 

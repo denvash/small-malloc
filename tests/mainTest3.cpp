@@ -55,12 +55,12 @@ int main() {
     //basic free
     //free the previous 14 bytes
 
-    // TODO: CONTINUE FROM HERE
     sfree(c1);
     data.freeBlocks += 1;
     data.freeBytes += 14;
     assertAll(data);
 
+    // TODO: CONTINUE FROM HERE
     //basic scalloc
     //allocate 12 bytes and see if they are reset to 0 (since we are reusing the ones from smalloc)
     int *arr = (int *) scalloc(3, 4);
