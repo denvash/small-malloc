@@ -280,10 +280,11 @@ void sfree(void *p) {
         //no merge with neighbors
     } else {
         metaData->is_free = true;
+        listOfBlocks.numberOfFreeBlocks++;
+        listOfBlocks.numberOfFreeBytes += metaData->size ;
     }
 
-    listOfBlocks.numberOfFreeBlocks++;
-    listOfBlocks.numberOfFreeBytes += metaData->size + _size_meta_data();
+
 }
 
 void *srealloc(void *oldp, size_t size) {
