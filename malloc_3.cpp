@@ -260,7 +260,7 @@ void sfree(void *p) {
             listOfBlocks.lastBlock = (metaData->prev);
 
         listOfBlocks.totalAllocatedBlocks -= 2;
-        listOfBlocks.totalAllocatedBytes+=2*_size_meta_data();
+        listOfBlocks.totalAllocatedBytes += 2 * _size_meta_data();
         listOfBlocks.numberOfFreeBlocks--;
         listOfBlocks.numberOfFreeBytes += metaData->size + 2 * _size_meta_data();
 
@@ -281,10 +281,8 @@ void sfree(void *p) {
             listOfBlocks.lastBlock = metaData;
 
         listOfBlocks.totalAllocatedBlocks--;
-        listOfBlocks.totalAllocatedBytes+=_size_meta_data();
+        listOfBlocks.totalAllocatedBytes += _size_meta_data();
         listOfBlocks.numberOfFreeBytes += metaData->size + _size_meta_data();
-
-
         //only lower neighbor is free
     } else if (metaData->prev && (metaData->prev)->is_free) {
         auto tempMeta = metaData->next;
@@ -300,7 +298,7 @@ void sfree(void *p) {
             listOfBlocks.lastBlock = metaData->prev;
 
         listOfBlocks.totalAllocatedBlocks--;
-        listOfBlocks.totalAllocatedBytes+=_size_meta_data();
+        listOfBlocks.totalAllocatedBytes += _size_meta_data();
         listOfBlocks.numberOfFreeBytes += metaData->size + _size_meta_data();
         //no merge with neighbors
     } else {
