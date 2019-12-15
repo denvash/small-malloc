@@ -11,9 +11,6 @@ struct MallocMetadata {
     bool is_free;
     MallocMetadata *next;
     MallocMetadata *prev;
-
-    MallocMetadata(size_t newSize, MallocMetadata **prevData) : size(newSize), is_free(false), next(nullptr),
-                                                                prev(*prevData) {}
 };
 
 struct ListOfMallocMetadata {
@@ -149,24 +146,24 @@ void sfree(void *p) {
     listOfBlocks.numberOfBytesInUse -= metaData->size;
 }
 
-void *srealloc(void *oldp, size_t size) {
+void *srealloc(void *oldP, size_t size) {
     if (size == 0 || sizeInCapacityRange(size))
         return nullptr;
-    if (!oldp)
+    if (!oldP)
         return smalloc(size);
 
-    auto oldMetaData = getMetaData(oldp);
+    auto oldMetaData = getMetaData(oldP);
 
     // Reuse
     if (size <= oldMetaData->size)
-        return oldp;
+        return oldP;
     else {
-        sfree(oldp);
+        sfree(oldP);
         void *newBlockAddress = smalloc(size);
         if (!newBlockAddress)
             return nullptr;
 
-        memcpy(newBlockAddress, oldp, oldMetaData->size);
+        memcpy(newBlockAddress, oldP, oldMetaData->size);
         return newBlockAddress;
     }
 }
