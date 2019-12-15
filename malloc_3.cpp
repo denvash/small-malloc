@@ -151,10 +151,13 @@ void *smalloc(size_t size) {
     } else {
         if (isWildernessBlockExists(size)) {
             auto lastBlock = listOfBlocks.lastBlock;
+
             if (lastBlock->size < size) {
                 lastBlock->size = size;
             }
+            lastBlock->is_free=false;
             // TODO: not sure if need to call sbrk()
+            //no need
             return getData(lastBlock);
         }
 
@@ -168,8 +171,10 @@ void *smalloc(size_t size) {
                 int diff = currBlock->size - size - _size_meta_data();
                 if (diff >= 128)
                     return splitBlock(currBlock, size);
-                else
+                else{
+                    currBlock->is_free=false;
                     return getData(currBlock);
+                }
             }
 
             if (!(currBlock->next))
