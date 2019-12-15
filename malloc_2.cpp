@@ -1,9 +1,7 @@
 #include <iostream>
 #include <unistd.h>
 #include <cmath>
-#include <cstdio>
 #include <cstring>
-#include "malloc_2.h"
 #include <cstddef>
 
 #define NEXT_BYTE (1)
