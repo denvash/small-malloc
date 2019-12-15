@@ -147,76 +147,78 @@ void *smalloc(size_t size) {
         listOfBlocks.lastBlock = firstMeta;
         return getData(firstMeta);
 
-    } else {
-        if (isWildernessBlockExists(size)) {
-            auto lastBlock = listOfBlocks.lastBlock;
-            auto isEnoughMemory = size <= lastBlock->size;
+    } else if (isWildernessBlockExists(size)) {
+        auto lastBlock = listOfBlocks.lastBlock;
+        auto isEnoughMemory = size <= lastBlock->size;
 
-            // need exactly size_t type for sbrk
-            size_t bytesDiff = abs(long(size - lastBlock->size));
+        // need exactly size_t type for sbrk
+        size_t bytesDiff = abs(long(size - lastBlock->size));
 
-            if (isEnoughMemory) {
-                int diff = lastBlock->size - size - _size_meta_data();
-                if (diff >= 128) {
-                    // numberOfFreeBytes & totalAllocatedBlocks called within splitBlock
-                    return splitBlock(lastBlock, size);
-                }
-            } else {
-                lastBlock->size = size;
-                if (sbrk(bytesDiff) == ALLOCATION_ERROR) {
-                    return nullptr;
-                }
-                listOfBlocks.totalAllocatedBytes += bytesDiff;
+        if (isEnoughMemory) {
+            int diff = lastBlock->size - size - _size_meta_data();
+            if (diff >= 128) {
+                // numberOfFreeBytes & totalAllocatedBlocks called within splitBlock
+                return splitBlock(lastBlock, size);
             }
-
-            listOfBlocks.numberOfFreeBlocks--;
-            lastBlock->is_free = false;
-            listOfBlocks.numberOfFreeBytes -= lastBlock->size + (isEnoughMemory ? 0 : bytesDiff);
-            return getData(lastBlock);
+        } else {
+            lastBlock->size = size;
+            if (sbrk(bytesDiff) == ALLOCATION_ERROR) {
+                return nullptr;
+            }
+            listOfBlocks.totalAllocatedBytes += bytesDiff;
         }
 
-        auto currBlock = listOfBlocks.firstBlock;
-        MallocMetadata *finalLinkedBlock;
+        listOfBlocks.numberOfFreeBlocks--;
+        lastBlock->is_free = false;
 
-        while (currBlock != nullptr) {
-            if (size <= currBlock->size && currBlock->is_free) {
-
-                // Keep the sign, don't use size_t, use int instead
-                int diff = currBlock->size - size - _size_meta_data();
-                if (diff >= 128) // update of listOfBlock is inside split block
-                    return splitBlock(currBlock, size);
-                else {
-                    currBlock->is_free = false;
-                    listOfBlocks.numberOfFreeBlocks--;
-                    listOfBlocks.numberOfFreeBytes -= currBlock->size;
-                    return getData(currBlock);
-                }
-            }
-
-            if (!(currBlock->next))
-                finalLinkedBlock = currBlock;
-
-            currBlock = currBlock->next;
-        }
-
-        // didn't find proper block,need to allocate
-        void *newBlockAddress = sbrk(_size_meta_data() + size);
-        if (newBlockAddress == ALLOCATION_ERROR)
-            return nullptr;
-
-        auto newMeta = (MallocMetadata *) newBlockAddress;
-        newMeta->size = size;
-        newMeta->is_free = false;
-
-        newMeta->prev = finalLinkedBlock;
-        finalLinkedBlock->next = newMeta;
-
-        listOfBlocks.totalAllocatedBlocks++;
-        listOfBlocks.totalAllocatedBytes += size;
-        listOfBlocks.lastBlock = newMeta;
-
-        return getData(newMeta);
+        auto newBytes = lastBlock->size + (isEnoughMemory ? 0 : bytesDiff);
+        auto prevBytes = listOfBlocks.numberOfFreeBytes;
+        listOfBlocks.numberOfFreeBytes = prevBytes < newBytes ? 0 : prevBytes - newBytes;
+        return getData(lastBlock);
     }
+
+
+    auto currBlock = listOfBlocks.firstBlock;
+    MallocMetadata *finalLinkedBlock;
+
+    while (currBlock != nullptr) {
+        if (size <= currBlock->size && currBlock->is_free) {
+
+            // Keep the sign, don't use size_t, use int instead
+            int diff = currBlock->size - size - _size_meta_data();
+            if (diff >= 128) // update of listOfBlock is inside split block
+                return splitBlock(currBlock, size);
+            else {
+                currBlock->is_free = false;
+                listOfBlocks.numberOfFreeBlocks--;
+                listOfBlocks.numberOfFreeBytes -= currBlock->size;
+                return getData(currBlock);
+            }
+        }
+
+        if (!(currBlock->next))
+            finalLinkedBlock = currBlock;
+
+        currBlock = currBlock->next;
+    }
+
+    // didn't find proper block,need to allocate
+    void *newBlockAddress = sbrk(_size_meta_data() + size);
+    if (newBlockAddress == ALLOCATION_ERROR)
+        return nullptr;
+
+    auto newMeta = (MallocMetadata *) newBlockAddress;
+    newMeta->size = size;
+    newMeta->is_free = false;
+
+    newMeta->prev = finalLinkedBlock;
+    finalLinkedBlock->next = newMeta;
+
+    listOfBlocks.totalAllocatedBlocks++;
+    listOfBlocks.totalAllocatedBytes += size;
+    listOfBlocks.lastBlock = newMeta;
+
+    return getData(newMeta);
 }
 
 void *scalloc(size_t num, size_t size) {
