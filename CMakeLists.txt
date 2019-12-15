@@ -18,3 +18,7 @@ add_executable(malloc2
 add_executable(malloc3
         malloc_3.cpp
         )
+
+add_executable(malloc4
+        malloc_4.cpp
+        )

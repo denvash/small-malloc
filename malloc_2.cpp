@@ -4,8 +4,6 @@
 #include <cstring>
 #include <cstddef>
 
-#define NEXT_BYTE (1)
-#define PREV_BYTE (-1)
 #define ALLOCATION_ERROR ((void*) (-1))
 
 struct MallocMetadata {
