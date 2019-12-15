@@ -157,11 +157,13 @@ void *smalloc(size_t size) {
             listOfBlocks.numberOfFreeBlocks--;
             lastBlock->is_free = false;
 
-            // TODO: Change program break
             auto isEnoughMemory = size <= lastBlock->size;
-            auto bytesDiff = size - lastBlock->size;
+            size_t bytesDiff = size - lastBlock->size;// need exactly size_t type for sbrk
             if (!isEnoughMemory) {
                 lastBlock->size = size;
+                if(sbrk(bytesDiff)==ALLOCATION_ERROR)
+                    return nullptr;
+
                 listOfBlocks.totalAllocatedBytes += bytesDiff;
             }
 
