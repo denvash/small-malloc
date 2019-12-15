@@ -70,6 +70,20 @@ void *splitBlock(void *blockAddress, size_t leastSignificantSize) {
     return blockAddress;
 }
 
+bool isWildernessBlockExists(size_t requestedSize) {
+    auto last = listOfBlocks.lastBlock;
+    auto first = listOfBlocks.firstBlock;
+
+    while (first != last) {
+        if (first->is_free && requestedSize <= first->size)
+            return false;
+
+        first = first->next;
+    }
+
+    return last->is_free;
+}
+
 void *smalloc(size_t size) {
     if (size == 0 || size > pow(10, 8))
         return nullptr;
@@ -90,6 +104,15 @@ void *smalloc(size_t size) {
         return getData(firstMeta);
 
     } else {
+        if (isWildernessBlockExists(size)) {
+            auto lastBlock = listOfBlocks.lastBlock;
+            if (lastBlock->size < size) {
+                lastBlock->size = size;
+            }
+            // TODO: not sure if need to call sbrk()
+            return getData(lastBlock);
+        }
+
         auto currBlock = listOfBlocks.firstBlock;
         MallocMetadata *finalLinkedBlock;
 
@@ -179,7 +202,7 @@ void sfree(void *p) {
     } else if (metaData->next && (metaData->next)->is_free) {
         auto tempMeta = (metaData->next)->next;
         size_t totalNewFreeBlockSize = (metaData->size +
-                                        (metaData->next)->size + _size_meta_data();
+                                        (metaData->next)->size + _size_meta_data());
 
         metaData->size = totalNewFreeBlockSize;
         metaData->is_free = true;
