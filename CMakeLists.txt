@@ -19,6 +19,14 @@ add_executable(malloc3
         malloc_3.cpp
         )
 
-add_executable(malloc4
-        malloc_4.cpp
+add_executable(testMain2
+        tests/mainTest2.cpp
+        malloc_2.h
+        malloc_2.cpp
+        )
+
+add_executable(testMain3
+        tests/mainTest3.cpp
+        malloc_3.h
+        malloc_3.cpp
         )

@@ -1,5 +1,5 @@
-#ifndef WET2_MALLOC_2_H
-#define WET2_MALLOC_2_H
+#ifndef WET2_MALLOC_3_H
+#define WET2_MALLOC_3_H
 
 #include <cstdlib>
 
