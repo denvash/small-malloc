@@ -149,17 +149,12 @@ void *smalloc(size_t size) {
     } else {
         if (isWildernessBlockExists(size)) {
             auto lastBlock = listOfBlocks.lastBlock;
-
-            listOfBlocks.numberOfFreeBlocks--;
-            lastBlock->is_free = false;
-
             auto isEnoughMemory = size <= lastBlock->size;
 
             // need exactly size_t type for sbrk
             size_t bytesDiff = abs(long(size - lastBlock->size));
 
             if (isEnoughMemory) {
-
                 int diff = lastBlock->size - size - _size_meta_data();
                 if (diff >= 128) {
                     // numberOfFreeBytes & totalAllocatedBlocks called within splitBlock
@@ -173,6 +168,8 @@ void *smalloc(size_t size) {
                 listOfBlocks.totalAllocatedBytes += bytesDiff;
             }
 
+            listOfBlocks.numberOfFreeBlocks--;
+            lastBlock->is_free = false;
             listOfBlocks.numberOfFreeBytes -= lastBlock->size + (isEnoughMemory ? 0 : bytesDiff);
             return getData(lastBlock);
         }
