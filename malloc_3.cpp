@@ -1,4 +1,5 @@
 #include <iostream>
+#include <sys/mman.h>
 #include <unistd.h>
 #include <cmath>
 #include <cstring>
@@ -6,6 +7,7 @@
 
 #define ALLOCATION_ERROR ((void*) (-1))
 #define MMAP_THRESHOLD 131072
+#define MUNMAP_FAILURE -1
 
 using namespace std;
 
@@ -32,7 +34,7 @@ struct ListOfMallocMetadata {
 };
 
 static ListOfMallocMetadata listOfBlocks = ListOfMallocMetadata();
-MallocMetadata* ListOfMMAP= nullptr;
+MallocMetadata* listOfMMAP= nullptr;
 
 size_t _num_allocated_blocks() {
     return listOfBlocks.totalAllocatedBlocks;
@@ -133,10 +135,14 @@ bool isWildernessBlockExists(size_t requestedSize) {
 void *smalloc(size_t size) {
     if (size == 0 || sizeInCapacityRange(size))
         return nullptr;
-
+    bool isMMAP=size>=MMAP_THRESHOLD;
     // first block allocation
     if (!listOfBlocks.totalAllocatedBlocks) {
-        void *firstBlockAddress = sbrk(_size_meta_data() + size);
+        void* firstBlockAddress=isMMAP ?
+                mmap(0,_size_meta_data()+size,PROT_READ|PROT_WRITE,
+                MAP_ANONYMOUS|MAP_PRIVATE,-1,0):
+                sbrk(_size_meta_data() + size);
+
         if (firstBlockAddress == ALLOCATION_ERROR)
             return nullptr;
 
@@ -145,10 +151,13 @@ void *smalloc(size_t size) {
         firstMeta->is_free = false;
         listOfBlocks.totalAllocatedBlocks++;
         listOfBlocks.totalAllocatedBytes = size;
-        listOfBlocks.firstBlock = firstMeta;
-        listOfBlocks.lastBlock = firstMeta;
-        return getData(firstMeta);
+        if(!isMMAP){
+            listOfBlocks.firstBlock = firstMeta;
+            listOfBlocks.lastBlock = firstMeta;
+        }else
+            listOfMMAP=firstMeta;
 
+        return getData(firstMeta);
     } else {
         if (isWildernessBlockExists(size)) {
             auto lastBlock = listOfBlocks.lastBlock;
@@ -177,22 +186,22 @@ void *smalloc(size_t size) {
             return getData(lastBlock);
         }
 
-        auto currBlock = listOfBlocks.firstBlock;
+        auto currBlock = isMMAP? listOfMMAP: listOfBlocks.firstBlock;
         MallocMetadata *finalLinkedBlock;
 
         while (currBlock != nullptr) {
             if (size <= currBlock->size && currBlock->is_free) {
 
-                // Keep the sign, don't use size_t, use int instead
-                int diff = currBlock->size - size - _size_meta_data();
-                if (diff >= 128) // update of listOfBlock is inside split block
-                    return splitBlock(currBlock, size);
-                else {
+                if(!isMMAP){
+                    // Keep the sign, don't use size_t, use int instead
+                    int diff = currBlock->size - size - _size_meta_data();
+                    if (diff >= 128) // update of listOfBlock is inside split block
+                        return splitBlock(currBlock, size);
+                }
                     currBlock->is_free = false;
                     listOfBlocks.numberOfFreeBlocks--;
                     listOfBlocks.numberOfFreeBytes -= currBlock->size;
                     return getData(currBlock);
-                }
             }
 
             if (!(currBlock->next))
@@ -202,7 +211,10 @@ void *smalloc(size_t size) {
         }
 
         // didn't find proper block,need to allocate
-        void *newBlockAddress = sbrk(_size_meta_data() + size);
+        void *newBlockAddress = isMMAP ?
+                                mmap(0,_size_meta_data()+size,PROT_READ|PROT_WRITE,
+                                     MAP_ANONYMOUS|MAP_PRIVATE,-1,0):
+                                sbrk(_size_meta_data() + size);
         if (newBlockAddress == ALLOCATION_ERROR)
             return nullptr;
 
