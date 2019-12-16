@@ -5,6 +5,7 @@
 #include <cstddef>
 
 #define ALLOCATION_ERROR ((void*) (-1))
+#define MMAP_THRESHOLD 131072
 
 using namespace std;
 
@@ -31,6 +32,7 @@ struct ListOfMallocMetadata {
 };
 
 static ListOfMallocMetadata listOfBlocks = ListOfMallocMetadata();
+MallocMetadata* ListOfMMAP= nullptr;
 
 size_t _num_allocated_blocks() {
     return listOfBlocks.totalAllocatedBlocks;
