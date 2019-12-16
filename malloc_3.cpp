@@ -360,10 +360,12 @@ void *srealloc(void *oldp, size_t size) {
     auto oldMetaData = getMetaData(oldp);
 
     if (oldMetaData->size >= size) {
-        int diff = oldMetaData->size - size - _size_meta_data();
-        if (diff >= 128) {
-            // numberOfFreeBytes & totalAllocatedBlocks called within splitBlock
-            return splitBlock(oldMetaData, size);
+        if(oldMetaData->size<=MMAP_THRESHOLD){
+            int diff = oldMetaData->size - size - _size_meta_data();
+            if (diff >= 128) {
+                // numberOfFreeBytes & totalAllocatedBlocks called within splitBlock
+                return splitBlock(oldMetaData, size);
+            }
         } else {
             if (oldMetaData->is_free) {
                 oldMetaData->is_free = false;
@@ -441,10 +443,11 @@ void *srealloc(void *oldp, size_t size) {
                 return lowerMeta;
             } // need to find free fitting block or allocate with sbrk
             else {
-                sfree(oldp);
+
                 void *newBlockAddress = smalloc(size);
                 if (!newBlockAddress)
                     return nullptr;
+                sfree(oldp);
 
                 memcpy(newBlockAddress, oldp, oldMetaData->size);
                 return newBlockAddress;
