@@ -140,7 +140,7 @@ bool isWildernessBlockExists(size_t requestedSize) {
         return false;
     auto last = listOfBlocks.lastBlock;
 
-    while (first && first != last) {
+    while (first != last) {
         if (first->is_free && requestedSize <= first->size)
             return false;
         first = first->next;
