@@ -16,9 +16,6 @@ struct MallocMetadata {
     bool is_free;
     MallocMetadata *next;
     MallocMetadata *prev;
-
-    MallocMetadata(size_t newSize, MallocMetadata **prevData) : size(newSize), is_free(false), next(nullptr),
-                                                                prev(*prevData) {}
 };
 
 struct ListOfMallocMetadata {
@@ -34,7 +31,8 @@ struct ListOfMallocMetadata {
 };
 
 static ListOfMallocMetadata listOfBlocks = ListOfMallocMetadata();
-MallocMetadata *listOfMMAP = nullptr;
+static MallocMetadata *listOfMMAP = nullptr;
+
 
 size_t _num_allocated_blocks() {
     return listOfBlocks.totalAllocatedBlocks;
@@ -103,6 +101,43 @@ void *getData(MallocMetadata *metaData) {
 
 MallocMetadata *getMetaData(void *data) {
     return !data ? nullptr : ((MallocMetadata *) data - 1);
+}
+
+void removeListItem(MallocMetadata *meta) {
+    auto curr = listOfMMAP;
+
+    while (curr != meta && curr != nullptr) {
+        curr = curr->next;
+    }
+
+    if (curr == nullptr) {
+        return;
+    }
+
+    auto prev = curr->prev;
+    auto next = curr->next;
+
+    // Empty list
+    if (!prev && !next) {
+        listOfMMAP = nullptr;
+        return;
+    }
+
+        // Remove from list start
+    else if (!prev) {
+        next->prev = nullptr;
+    }
+
+        // Remove from list end
+    else if (!next) {
+        prev->next = nullptr;
+    }
+
+        // Remove from list inner
+    else {
+        prev->next = next;
+        next->prev = prev;
+    }
 }
 
 void *splitBlock(void *blockAddress, size_t leastSignificantSize) {
@@ -276,7 +311,19 @@ void sfree(void *p) {
     if (metaData->is_free)
         return;
 
-    // both neighbors are free
+    auto isMMAP = metaData->size >= MMAP_THRESHOLD;
+
+    if (isMMAP) {
+        // listOfMMAP can't be null
+        removeListItem(metaData);
+
+        listOfBlocks.totalAllocatedBytes -= metaData->size;
+        listOfBlocks.totalAllocatedBlocks--;
+
+        // Free memory
+        // Can fail (return -1), no way to handle
+        munmap(metaData, metaData->size + _size_meta_data());
+    } else // both neighbors are free
     if (metaData->next && (metaData->next)->is_free &&
         metaData->prev && metaData->prev->is_free) {
 
@@ -354,7 +401,7 @@ void *srealloc(void *oldp, size_t size) {
     auto oldMetaData = getMetaData(oldp);
 
     if (oldMetaData->size >= size) {
-        if(oldMetaData->size<=MMAP_THRESHOLD){
+        if (oldMetaData->size <= MMAP_THRESHOLD) {
             int diff = oldMetaData->size - size - _size_meta_data();
             if (diff >= 128) {
                 // numberOfFreeBytes & totalAllocatedBlocks called within splitBlock
