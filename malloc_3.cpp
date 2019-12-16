@@ -34,7 +34,7 @@ struct ListOfMallocMetadata {
 };
 
 static ListOfMallocMetadata listOfBlocks = ListOfMallocMetadata();
-MallocMetadata *listOfMMAP = nullptr;
+static MallocMetadata *listOfMMAP = nullptr;
 
 size_t _num_allocated_blocks() {
     return listOfBlocks.totalAllocatedBlocks;
@@ -276,7 +276,13 @@ void sfree(void *p) {
     if (metaData->is_free)
         return;
 
-    // both neighbors are free
+    auto isMMAP = metaData->size >= MMAP_THRESHOLD;
+
+    if (isMMAP) {
+        // MMAP list can't be null
+
+
+    } else // both neighbors are free
     if (metaData->next && (metaData->next)->is_free &&
         metaData->prev && metaData->prev->is_free) {
 
