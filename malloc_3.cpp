@@ -139,6 +139,7 @@ bool isWildernessBlockExists(size_t requestedSize) {
     if(!first)
         return false;
     auto last = listOfBlocks.lastBlock;
+    auto first = listOfBlocks.firstBlock;
 
     while (first && first != last) {
         if (first->is_free && requestedSize <= first->size)
@@ -180,34 +181,37 @@ void *smalloc(size_t size) {
             auto lastBlock = listOfBlocks.lastBlock;
             auto isEnoughMemory = size <= lastBlock->size;
 
-            // need exactly size_t type for sbrk
-            size_t bytesDiff = abs(long(size - lastBlock->size));
+        // need exactly size_t type for sbrk
+        size_t bytesDiff = abs(long(size - lastBlock->size));
 
-            if (isEnoughMemory) {
-                int diff = lastBlock->size - size - _size_meta_data();
-                if (diff >= 128) {
-                    // numberOfFreeBytes & totalAllocatedBlocks called within splitBlock
-                    return splitBlock(lastBlock, size);
-                }
-            } else {
-                lastBlock->size = size;
-                if (sbrk(bytesDiff) == ALLOCATION_ERROR) {
-                    return nullptr;
-                }
-                listOfBlocks.totalAllocatedBytes += bytesDiff;
+        if (isEnoughMemory) {
+            int diff = lastBlock->size - size - _size_meta_data();
+            if (diff >= 128) {
+                // numberOfFreeBytes & totalAllocatedBlocks called within splitBlock
+                return splitBlock(lastBlock, size);
             }
-
-            listOfBlocks.numberOfFreeBlocks--;
-            lastBlock->is_free = false;
-            listOfBlocks.numberOfFreeBytes -= lastBlock->size + (isEnoughMemory ? 0 : bytesDiff);
-            return getData(lastBlock);
+        } else {
+            lastBlock->size = size;
+            if (sbrk(bytesDiff) == ALLOCATION_ERROR) {
+                return nullptr;
+            }
+            listOfBlocks.totalAllocatedBytes += bytesDiff;
         }
 
-        auto currBlock = isMMAP? listOfMMAP: listOfBlocks.firstBlock;
+        listOfBlocks.numberOfFreeBlocks--;
+        lastBlock->is_free = false;
+
+        auto newBytes = lastBlock->size + (isEnoughMemory ? 0 : bytesDiff);
+        auto prevBytes = listOfBlocks.numberOfFreeBytes;
+        listOfBlocks.numberOfFreeBytes = prevBytes < newBytes ? 0 : prevBytes - newBytes;
+        return getData(lastBlock);
+    }
+
+        auto currBlock = listOfBlocks.firstBlock;
         MallocMetadata *finalLinkedBlock;
 
-        while (currBlock != nullptr) {
-            if (size <= currBlock->size && currBlock->is_free) {
+    while (currBlock != nullptr) {
+        if (size <= currBlock->size && currBlock->is_free) {
 
                 if(!isMMAP){
                     // Keep the sign, don't use size_t, use int instead
@@ -221,11 +225,11 @@ void *smalloc(size_t size) {
                     return getData(currBlock);
             }
 
-            if (!(currBlock->next))
-                finalLinkedBlock = currBlock;
+        if (!(currBlock->next))
+            finalLinkedBlock = currBlock;
 
-            currBlock = currBlock->next;
-        }
+        currBlock = currBlock->next;
+    }
 
         // didn't find proper block,need to allocate
         void *newBlockAddress = isMMAP ?
@@ -235,19 +239,18 @@ void *smalloc(size_t size) {
         if (newBlockAddress == ALLOCATION_ERROR)
             return nullptr;
 
-        auto newMeta = (MallocMetadata *) newBlockAddress;
-        newMeta->size = size;
-        newMeta->is_free = false;
+    auto newMeta = (MallocMetadata *) newBlockAddress;
+    newMeta->size = size;
+    newMeta->is_free = false;
 
-        newMeta->prev = finalLinkedBlock;
-        finalLinkedBlock->next = newMeta;
+    newMeta->prev = finalLinkedBlock;
+    finalLinkedBlock->next = newMeta;
 
-        listOfBlocks.totalAllocatedBlocks++;
-        listOfBlocks.totalAllocatedBytes += size;
-        listOfBlocks.lastBlock = newMeta;
+    listOfBlocks.totalAllocatedBlocks++;
+    listOfBlocks.totalAllocatedBytes += size;
+    listOfBlocks.lastBlock = newMeta;
 
-        return getData(newMeta);
-    }
+    return getData(newMeta);
 }
 
 void *scalloc(size_t num, size_t size) {
