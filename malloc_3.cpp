@@ -417,7 +417,7 @@ void *srealloc(void *oldp, size_t size) {
                 listOfBlocks.numberOfFreeBytes -= oldMetaData->size;
             }
             return oldp;
-        }
+
     } else {
         if(!isMMAP){
             auto lastBlock = listOfBlocks.lastBlock;
