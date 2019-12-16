@@ -154,7 +154,7 @@ void *smalloc(size_t size) {
         return nullptr;
     bool isMMAP=size>=MMAP_THRESHOLD;
     // first block allocation
-    if (!listOfBlocks.firstBlock || !listOfMMAP) {
+    if ((!listOfBlocks.firstBlock && !isMMAP) || (!listOfMMAP && isMMAP)) {
         void* firstBlockAddress=isMMAP ?
                 mmap(0,_size_meta_data()+size,PROT_READ|PROT_WRITE,
                 MAP_ANONYMOUS|MAP_PRIVATE,-1,0):
