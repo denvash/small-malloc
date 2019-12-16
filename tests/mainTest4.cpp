@@ -1,8 +1,3 @@
-//
-// Created by student on 12/13/19.
-//
-
-#include <iostream>
 #include <assert.h>
 #include "../malloc_4.h"
 

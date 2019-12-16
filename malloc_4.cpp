@@ -186,9 +186,24 @@ bool isWildernessBlockExists(size_t requestedSize) {
     return last->is_free;
 }
 
-void *smalloc(size_t size) {
+size_t alignSize(size_t numToRound, size_t multiple = 8) {
+    if (multiple == 0)
+        return numToRound;
+
+    size_t remainder = numToRound % multiple;
+    if (remainder == 0)
+        return numToRound;
+
+    return numToRound + multiple - remainder;
+}
+
+void *smalloc(size_t _size) {
+    auto size = alignSize(_size);
+
     if (size == 0 || sizeInCapacityRange(size))
         return nullptr;
+
+
     bool isMMAP = size >= MMAP_THRESHOLD;
     // first block allocation
     if ((!listOfBlocks.firstBlock && !isMMAP) || (!listOfMMAP && isMMAP)) {
@@ -410,15 +425,15 @@ void *srealloc(void *oldp, size_t size) {
                 // numberOfFreeBytes & totalAllocatedBlocks called within splitBlock
                 return splitBlock(oldMetaData, size);
             }
-        }else if(oldMetaData->size!=size){//isMMAP
-                void* newFixedBlock=smalloc(size);
-                if(!newFixedBlock)
-                    return nullptr;
-                size_t oldSize=oldMetaData->size;
-                 memcpy(newFixedBlock, oldp, oldMetaData->size);
-                 oldMetaData->size=oldSize;
-                 sfree(oldp);
-                 return newFixedBlock;
+        } else if (oldMetaData->size != size) {//isMMAP
+            void *newFixedBlock = smalloc(size);
+            if (!newFixedBlock)
+                return nullptr;
+            size_t oldSize = oldMetaData->size;
+            memcpy(newFixedBlock, oldp, oldMetaData->size);
+            oldMetaData->size = oldSize;
+            sfree(oldp);
+            return newFixedBlock;
         }
 
         if (oldMetaData->is_free) {
@@ -433,7 +448,7 @@ void *srealloc(void *oldp, size_t size) {
             auto lastBlock = listOfBlocks.lastBlock;
 
             if (oldMetaData == lastBlock) {
-                if (listOfBlocks.numberOfFreeBlocks && oldMetaData->is_free)  {
+                if (listOfBlocks.numberOfFreeBlocks && oldMetaData->is_free) {
                     listOfBlocks.numberOfFreeBlocks--;
                 }
 
@@ -451,7 +466,8 @@ void *srealloc(void *oldp, size_t size) {
                 auto higherMeta = oldMetaData->next;
                 auto lowerMeta = oldMetaData->prev;
                 // try to merge with higher address
-                if (higherMeta && higherMeta->is_free && (oldMetaData->size + higherMeta->size+_size_meta_data()) >= size) {
+                if (higherMeta && higherMeta->is_free &&
+                    (oldMetaData->size + higherMeta->size + _size_meta_data()) >= size) {
                     auto nextHigherMeta = higherMeta->next;
                     oldMetaData->next = nextHigherMeta;
                     oldMetaData->size = oldMetaData->size + higherMeta->size + _size_meta_data();
@@ -468,10 +484,11 @@ void *srealloc(void *oldp, size_t size) {
                     return oldp;
 
                 } //try to merge with lower address
-                else if (lowerMeta && lowerMeta->is_free && (oldMetaData->size + lowerMeta->size)+_size_meta_data() >= size) {
+                else if (lowerMeta && lowerMeta->is_free &&
+                         (oldMetaData->size + lowerMeta->size) + _size_meta_data() >= size) {
                     auto nextHigherMeta = oldMetaData->next;
                     lowerMeta->next = nextHigherMeta;
-                    if(lowerMeta->is_free)
+                    if (lowerMeta->is_free)
                         listOfBlocks.numberOfFreeBytes -= lowerMeta->size;
                     listOfBlocks.numberOfFreeBlocks--;
                     listOfBlocks.totalAllocatedBytes += _size_meta_data();
@@ -489,7 +506,7 @@ void *srealloc(void *oldp, size_t size) {
 
                 } //try to merge with both neighbors
                 else if (lowerMeta && lowerMeta->is_free && higherMeta && higherMeta->is_free &&
-                         (lowerMeta->size + oldMetaData->size + higherMeta->size+2*_size_meta_data()) >= size) {
+                         (lowerMeta->size + oldMetaData->size + higherMeta->size + 2 * _size_meta_data()) >= size) {
                     auto nextHigherMeta = higherMeta->next;
                     lowerMeta->next = nextHigherMeta;
                     lowerMeta->size += oldMetaData->size + higherMeta->size + 2 * (_size_meta_data());
@@ -513,9 +530,9 @@ void *srealloc(void *oldp, size_t size) {
         void *newBlockAddress = smalloc(size);
         if (!newBlockAddress)
             return nullptr;
-        size_t oldSize=oldMetaData->size;
+        size_t oldSize = oldMetaData->size;
         memcpy(newBlockAddress, oldp, oldMetaData->size);
-        oldMetaData->size=oldSize;
+        oldMetaData->size = oldSize;
         sfree(oldp);
         return newBlockAddress;
 
