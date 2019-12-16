@@ -206,7 +206,7 @@ void *smalloc(size_t size) {
             return getData(lastBlock);
         }
 
-        auto currBlock = listOfBlocks.firstBlock;
+        auto currBlock = isMMAP?listOfMMAP: listOfBlocks.firstBlock;
         MallocMetadata *finalLinkedBlock;
 
         while (currBlock != nullptr) {
@@ -352,100 +352,102 @@ void *srealloc(void *oldp, size_t size) {
         return smalloc(size);
 
     auto oldMetaData = getMetaData(oldp);
+    bool isMMAP=oldMetaData->size>=MMAP_THRESHOLD;
 
     if (oldMetaData->size >= size) {
-        if(oldMetaData->size<=MMAP_THRESHOLD){
+        if(!isMMAP) {
             int diff = oldMetaData->size - size - _size_meta_data();
             if (diff >= 128) {
                 // numberOfFreeBytes & totalAllocatedBlocks called within splitBlock
                 return splitBlock(oldMetaData, size);
             }
-        } else {
+        }
             if (oldMetaData->is_free) {
                 oldMetaData->is_free = false;
                 listOfBlocks.numberOfFreeBlocks--;
                 listOfBlocks.numberOfFreeBytes -= oldMetaData->size;
             }
             return oldp;
-        }
     } else {
-        auto lastBlock = listOfBlocks.lastBlock;
+        if(!isMMAP){
+            auto lastBlock = listOfBlocks.lastBlock;
 
-        if (oldMetaData == lastBlock) {
-            lastBlock->size = size;
-            listOfBlocks.numberOfFreeBlocks--;
-            listOfBlocks.numberOfFreeBytes -= lastBlock->size;
-            size_t diffBytes = size - lastBlock->size;
-            if (sbrk(diffBytes) == ALLOCATION_ERROR)
-                return nullptr;
-            return getData(lastBlock);
-
-        }// try to merge with higher address
-        else {
-            auto higherMeta = oldMetaData->next;
-            auto lowerMeta = oldMetaData->prev;
-            if (higherMeta && (oldMetaData->size + higherMeta->size) >= size) {
-                auto nextHigherMeta = higherMeta->next;
-                oldMetaData->next = nextHigherMeta;
-                oldMetaData->size = oldMetaData->size + higherMeta->size + _size_meta_data();
-                listOfBlocks.numberOfFreeBytes -= higherMeta->size;
+            if (oldMetaData == lastBlock) {
+                lastBlock->size = size;
                 listOfBlocks.numberOfFreeBlocks--;
-                listOfBlocks.totalAllocatedBytes += _size_meta_data();
-
-                if (nextHigherMeta)
-                    nextHigherMeta->prev = oldMetaData;
-                else
-                    listOfBlocks.lastBlock = oldMetaData;
-
-                return oldMetaData;
-
-            } //try to merge with lower address
-            else if (lowerMeta && (oldMetaData->size + lowerMeta->size) >= size) {
-                auto nextHigherMeta = oldMetaData->next;
-                lowerMeta->next = nextHigherMeta;
-                lowerMeta->size += oldMetaData->size + _size_meta_data();
-                listOfBlocks.numberOfFreeBytes -= oldMetaData->size;
-                listOfBlocks.numberOfFreeBlocks--;
-                listOfBlocks.totalAllocatedBytes += _size_meta_data();
-
-                if (nextHigherMeta)
-                    nextHigherMeta->prev = lowerMeta;
-                else
-                    listOfBlocks.lastBlock = lowerMeta;
-
-                lowerMeta->is_free = false;
-                return lowerMeta;
-
-
-            } //try to merge with both neighbors
-            else if (lowerMeta && higherMeta &&
-                     (lowerMeta->size + oldMetaData->size + higherMeta->size) >= size) {
-                auto nextHigherMeta = oldMetaData->next;
-                lowerMeta->next = nextHigherMeta;
-                lowerMeta->size += oldMetaData->size + higherMeta->size + 2 * (_size_meta_data());
-                listOfBlocks.numberOfFreeBytes -= (oldMetaData->size + higherMeta->size);
-                listOfBlocks.numberOfFreeBlocks -= 2;
-                listOfBlocks.totalAllocatedBlocks -= 2;
-                listOfBlocks.totalAllocatedBytes += 2 * (_size_meta_data());
-
-                if (nextHigherMeta)
-                    nextHigherMeta->prev = lowerMeta;
-                else
-                    listOfBlocks.lastBlock = lowerMeta;
-
-                lowerMeta->is_free = false;
-                return lowerMeta;
-            } // need to find free fitting block or allocate with sbrk
-            else {
-
-                void *newBlockAddress = smalloc(size);
-                if (!newBlockAddress)
+                listOfBlocks.numberOfFreeBytes -= lastBlock->size;
+                size_t diffBytes = size - lastBlock->size;
+                if (sbrk(diffBytes) == ALLOCATION_ERROR)
                     return nullptr;
-                sfree(oldp);
+                return getData(lastBlock);
 
-                memcpy(newBlockAddress, oldp, oldMetaData->size);
-                return newBlockAddress;
-            }
+            }else {
+                auto higherMeta = oldMetaData->next;
+                auto lowerMeta = oldMetaData->prev;
+                // try to merge with higher address
+                if (higherMeta && (oldMetaData->size + higherMeta->size) >= size) {
+                    auto nextHigherMeta = higherMeta->next;
+                    oldMetaData->next = nextHigherMeta;
+                    oldMetaData->size = oldMetaData->size + higherMeta->size + _size_meta_data();
+                    listOfBlocks.numberOfFreeBytes -= higherMeta->size;
+                    listOfBlocks.numberOfFreeBlocks--;
+                    listOfBlocks.totalAllocatedBytes += _size_meta_data();
+
+                    if (nextHigherMeta)
+                        nextHigherMeta->prev = oldMetaData;
+                    else
+                        listOfBlocks.lastBlock = oldMetaData;
+
+                    return oldMetaData;
+
+                } //try to merge with lower address
+                else if (lowerMeta && (oldMetaData->size + lowerMeta->size) >= size) {
+                    auto nextHigherMeta = oldMetaData->next;
+                    lowerMeta->next = nextHigherMeta;
+                    lowerMeta->size += oldMetaData->size + _size_meta_data();
+                    listOfBlocks.numberOfFreeBytes -= oldMetaData->size;
+                    listOfBlocks.numberOfFreeBlocks--;
+                    listOfBlocks.totalAllocatedBytes += _size_meta_data();
+
+                    if (nextHigherMeta)
+                        nextHigherMeta->prev = lowerMeta;
+                    else
+                        listOfBlocks.lastBlock = lowerMeta;
+
+                    lowerMeta->is_free = false;
+                    return lowerMeta;
+
+
+                } //try to merge with both neighbors
+                else if (lowerMeta && higherMeta &&
+                         (lowerMeta->size + oldMetaData->size + higherMeta->size) >= size) {
+                    auto nextHigherMeta = oldMetaData->next;
+                    lowerMeta->next = nextHigherMeta;
+                    lowerMeta->size += oldMetaData->size + higherMeta->size + 2 * (_size_meta_data());
+                    listOfBlocks.numberOfFreeBytes -= (oldMetaData->size + higherMeta->size);
+                    listOfBlocks.numberOfFreeBlocks -= 2;
+                    listOfBlocks.totalAllocatedBlocks -= 2;
+                    listOfBlocks.totalAllocatedBytes += 2 * (_size_meta_data());
+
+                    if (nextHigherMeta)
+                        nextHigherMeta->prev = lowerMeta;
+                    else
+                        listOfBlocks.lastBlock = lowerMeta;
+
+                    lowerMeta->is_free = false;
+                    return lowerMeta;
+                }
         }
+        }
+
+        // need to find free fitting block or allocate with sbrk
+        void *newBlockAddress = smalloc(size);
+        if (!newBlockAddress)
+            return nullptr;
+        sfree(oldp);
+
+        memcpy(newBlockAddress, oldp, oldMetaData->size);
+        return newBlockAddress;
+
     }
 }
