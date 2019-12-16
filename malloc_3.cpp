@@ -243,7 +243,7 @@ void *smalloc(size_t size) {
             return getData(lastBlock);
         }
 
-        auto currBlock = isMMAP?listOfMMAP: listOfBlocks.firstBlock;
+        auto currBlock = isMMAP ? listOfMMAP : listOfBlocks.firstBlock;
         MallocMetadata *finalLinkedBlock;
 
         while (currBlock != nullptr) {
@@ -401,37 +401,44 @@ void *srealloc(void *oldp, size_t size) {
         return smalloc(size);
 
     auto oldMetaData = getMetaData(oldp);
-    bool isMMAP=oldMetaData->size>=MMAP_THRESHOLD;
+    bool isMMAP = oldMetaData->size >= MMAP_THRESHOLD;
 
     if (oldMetaData->size >= size) {
-        if(!isMMAP) {
+        if (!isMMAP) {
             int diff = oldMetaData->size - size - _size_meta_data();
             if (diff >= 128) {
                 // numberOfFreeBytes & totalAllocatedBlocks called within splitBlock
                 return splitBlock(oldMetaData, size);
             }
         }
-            if (oldMetaData->is_free) {
-                oldMetaData->is_free = false;
-                listOfBlocks.numberOfFreeBlocks--;
-                listOfBlocks.numberOfFreeBytes -= oldMetaData->size;
-            }
-            return oldp;
+        if (oldMetaData->is_free) {
+            oldMetaData->is_free = false;
+            listOfBlocks.numberOfFreeBlocks--;
+            listOfBlocks.numberOfFreeBytes -= oldMetaData->size;
+        }
+        return oldp;
 
     } else {
-        if(!isMMAP){
+        if (!isMMAP) {
             auto lastBlock = listOfBlocks.lastBlock;
 
             if (oldMetaData == lastBlock) {
+                if (listOfBlocks.numberOfFreeBlocks) {
+                    listOfBlocks.numberOfFreeBlocks--;
+                }
+
+                auto newBytes = lastBlock->size;
+                auto prevBytes = listOfBlocks.numberOfFreeBytes;
+                listOfBlocks.numberOfFreeBytes = prevBytes < newBytes ? 0 : prevBytes - newBytes;
+
+                size_t diffBytes = abs(long(size - lastBlock->size));
+                listOfBlocks.totalAllocatedBytes += diffBytes;
                 lastBlock->size = size;
-                listOfBlocks.numberOfFreeBlocks--;
-                listOfBlocks.numberOfFreeBytes -= lastBlock->size;
-                size_t diffBytes = size - lastBlock->size;
                 if (sbrk(diffBytes) == ALLOCATION_ERROR)
                     return nullptr;
                 return getData(lastBlock);
 
-            }else {
+            } else {
                 auto higherMeta = oldMetaData->next;
                 auto lowerMeta = oldMetaData->prev;
                 // try to merge with higher address
@@ -487,7 +494,7 @@ void *srealloc(void *oldp, size_t size) {
                     lowerMeta->is_free = false;
                     return lowerMeta;
                 }
-        }
+            }
         }
 
         // need to find free fitting block or allocate with sbrk
