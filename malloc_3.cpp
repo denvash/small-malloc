@@ -34,7 +34,7 @@ struct ListOfMallocMetadata {
 };
 
 static ListOfMallocMetadata listOfBlocks = ListOfMallocMetadata();
-MallocMetadata* listOfMMAP= nullptr;
+MallocMetadata *listOfMMAP = nullptr;
 
 size_t _num_allocated_blocks() {
     return listOfBlocks.totalAllocatedBlocks;
@@ -67,7 +67,7 @@ bool sizeInCapacityRange(size_t size) {
 
 void printAllMetaBlocks() {
     auto currBlock = listOfBlocks.firstBlock;
-    cout << "---HEAP blocks---" <<  endl;
+    cout << "---HEAP blocks---" << endl;
     while (currBlock != nullptr) {
         cout << "curr Meta block address:" << currBlock << endl;
         cout << "curr Meta block size:" << currBlock->size << endl;
@@ -81,7 +81,7 @@ void printAllMetaBlocks() {
         currBlock = currBlock->next;
     }
     cout << "---MMAP blocks---" << endl;
-    currBlock=listOfMMAP;
+    currBlock = listOfMMAP;
     while (currBlock != nullptr) {
         cout << "curr Meta block address:" << currBlock << endl;
         cout << "curr Meta block size:" << currBlock->size << endl;
@@ -136,7 +136,7 @@ void *splitBlock(void *blockAddress, size_t leastSignificantSize) {
 
 bool isWildernessBlockExists(size_t requestedSize) {
     auto first = listOfBlocks.firstBlock;
-    if(!first)
+    if (!first)
         return false;
     auto last = listOfBlocks.lastBlock;
 
@@ -152,12 +152,12 @@ bool isWildernessBlockExists(size_t requestedSize) {
 void *smalloc(size_t size) {
     if (size == 0 || sizeInCapacityRange(size))
         return nullptr;
-    bool isMMAP=size>=MMAP_THRESHOLD;
+    bool isMMAP = size >= MMAP_THRESHOLD;
     // first block allocation
     if ((!listOfBlocks.firstBlock && !isMMAP) || (!listOfMMAP && isMMAP)) {
-        void* firstBlockAddress=isMMAP ?
-                mmap(0,_size_meta_data()+size,PROT_READ|PROT_WRITE,
-                MAP_ANONYMOUS|MAP_PRIVATE,-1,0):
+        void *firstBlockAddress =
+                isMMAP ?
+                mmap(0, _size_meta_data() + size, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0) :
                 sbrk(_size_meta_data() + size);
 
         if (firstBlockAddress == ALLOCATION_ERROR)
@@ -167,12 +167,12 @@ void *smalloc(size_t size) {
         firstMeta->size = size;
         firstMeta->is_free = false;
         listOfBlocks.totalAllocatedBlocks++;
-        listOfBlocks.totalAllocatedBytes = size;
-        if(!isMMAP){
+        listOfBlocks.totalAllocatedBytes += size;
+        if (!isMMAP) {
             listOfBlocks.firstBlock = firstMeta;
             listOfBlocks.lastBlock = firstMeta;
-        }else
-            listOfMMAP=firstMeta;
+        } else
+            listOfMMAP = firstMeta;
 
         return getData(firstMeta);
     } else {
@@ -231,10 +231,11 @@ void *smalloc(size_t size) {
         }
 
         // didn't find proper block,need to allocate
-        void *newBlockAddress = isMMAP ?
-                                mmap(0, _size_meta_data() + size, PROT_READ | PROT_WRITE,
-                                     MAP_ANONYMOUS | MAP_PRIVATE, -1, 0) :
-                                sbrk(_size_meta_data() + size);
+        void *newBlockAddress =
+                isMMAP ?
+                mmap(0, _size_meta_data() + size, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0) :
+                sbrk(_size_meta_data() + size);
+
         if (newBlockAddress == ALLOCATION_ERROR)
             return nullptr;
 
