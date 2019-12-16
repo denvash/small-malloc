@@ -67,6 +67,21 @@ bool sizeInCapacityRange(size_t size) {
 
 void printAllMetaBlocks() {
     auto currBlock = listOfBlocks.firstBlock;
+    cout << "---HEAP blocks---" <<  endl;
+    while (currBlock != nullptr) {
+        cout << "curr Meta block address:" << currBlock << endl;
+        cout << "curr Meta block size:" << currBlock->size << endl;
+        cout << "curr Meta block free?:" << (bool) currBlock->is_free << endl;
+        cout << "Number of Total allocated blocks:" << _num_allocated_blocks() << endl;
+        cout << "Number of Total allocated bytes:" << _num_allocated_bytes() << endl;
+        cout << "Number of free blocks:" << _num_free_blocks() << endl;
+        cout << "Number of free bytes:" << _num_free_bytes() << endl;
+        cout << "Address of static list:" << &listOfBlocks << endl;
+        cout << "========================" << endl;
+        currBlock = currBlock->next;
+    }
+    cout << "---MMAP blocks---" << endl;
+    currBlock=listOfMMAP;
     while (currBlock != nullptr) {
         cout << "curr Meta block address:" << currBlock << endl;
         cout << "curr Meta block size:" << currBlock->size << endl;
@@ -120,10 +135,12 @@ void *splitBlock(void *blockAddress, size_t leastSignificantSize) {
 }
 
 bool isWildernessBlockExists(size_t requestedSize) {
-    auto last = listOfBlocks.lastBlock;
     auto first = listOfBlocks.firstBlock;
+    if(!first)
+        return false;
+    auto last = listOfBlocks.lastBlock;
 
-    while (first != last) {
+    while (first && first != last) {
         if (first->is_free && requestedSize <= first->size)
             return false;
         first = first->next;
@@ -137,7 +154,7 @@ void *smalloc(size_t size) {
         return nullptr;
     bool isMMAP=size>=MMAP_THRESHOLD;
     // first block allocation
-    if (!listOfBlocks.totalAllocatedBlocks) {
+    if (!listOfBlocks.firstBlock || !listOfMMAP) {
         void* firstBlockAddress=isMMAP ?
                 mmap(0,_size_meta_data()+size,PROT_READ|PROT_WRITE,
                 MAP_ANONYMOUS|MAP_PRIVATE,-1,0):
@@ -159,7 +176,7 @@ void *smalloc(size_t size) {
 
         return getData(firstMeta);
     } else {
-        if (isWildernessBlockExists(size)) {
+        if (!isMMAP && isWildernessBlockExists(size)) {
             auto lastBlock = listOfBlocks.lastBlock;
             auto isEnoughMemory = size <= lastBlock->size;
 
