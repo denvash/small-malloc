@@ -17,7 +17,7 @@ struct MallocMetadata {
     MallocMetadata *next;
     MallocMetadata *prev;
 
-    MallocMetadata(size_t newSize, MallocMetadata **prevData) : size(newSize), is_free(false), next(nullptr),
+    MallocMetadata(size_t newSize, MallocMetadata **prevData) : size(newSize), is_free(false), next(NULL),
                                                                 prev(*prevData) {}
 };
 
@@ -34,7 +34,7 @@ struct ListOfMallocMetadata {
 };
 
 static ListOfMallocMetadata listOfBlocks = ListOfMallocMetadata();
-MallocMetadata *listOfMMAP = nullptr;
+MallocMetadata *listOfMMAP = NULL;
 
 size_t _num_allocated_blocks() {
     return listOfBlocks.totalAllocatedBlocks;
@@ -68,7 +68,7 @@ bool sizeInCapacityRange(size_t size) {
 void printAllMetaBlocks() {
     auto currBlock = listOfBlocks.firstBlock;
     cout << "---HEAP blocks---" << endl;
-    while (currBlock != nullptr) {
+    while (currBlock != NULL) {
         cout << "curr Meta block address:" << currBlock << endl;
         cout << "curr Meta block size:" << currBlock->size << endl;
         cout << "curr Meta block free?:" << (bool) currBlock->is_free << endl;
@@ -82,7 +82,7 @@ void printAllMetaBlocks() {
     }
     cout << "---MMAP blocks---" << endl;
     currBlock = listOfMMAP;
-    while (currBlock != nullptr) {
+    while (currBlock != NULL) {
         cout << "curr Meta block address:" << currBlock << endl;
         cout << "curr Meta block size:" << currBlock->size << endl;
         cout << "curr Meta block free?:" << (bool) currBlock->is_free << endl;
@@ -102,17 +102,17 @@ void *getData(MallocMetadata *metaData) {
 }
 
 MallocMetadata *getMetaData(void *data) {
-    return !data ? nullptr : ((MallocMetadata *) data - 1);
+    return !data ? NULL : ((MallocMetadata *) data - 1);
 }
 
 void removeListItem(MallocMetadata *meta) {
     auto curr = listOfMMAP;
 
-    while (curr != meta && curr != nullptr) {
+    while (curr != meta && curr != NULL) {
         curr = curr->next;
     }
 
-    if (curr == nullptr) {
+    if (curr == NULL) {
         return;
     }
 
@@ -121,18 +121,18 @@ void removeListItem(MallocMetadata *meta) {
 
     // Empty list
     if (!prev && !next) {
-        listOfMMAP = nullptr;
+        listOfMMAP = NULL;
         return;
     }
 
         // Remove from list start
     else if (!prev) {
-        next->prev = nullptr;
+        next->prev = NULL;
     }
 
         // Remove from list end
     else if (!next) {
-        prev->next = nullptr;
+        prev->next = NULL;
     }
 
         // Remove from list inner
@@ -188,7 +188,7 @@ bool isWildernessBlockExists(size_t requestedSize) {
 
 void *smalloc(size_t size) {
     if (size == 0 || sizeInCapacityRange(size))
-        return nullptr;
+        return NULL;
     bool isMMAP = size >= MMAP_THRESHOLD;
     // first block allocation
     if ((!listOfBlocks.firstBlock && !isMMAP) || (!listOfMMAP && isMMAP)) {
@@ -198,7 +198,7 @@ void *smalloc(size_t size) {
                 sbrk(_size_meta_data() + size);
 
         if (firstBlockAddress == ALLOCATION_ERROR)
-            return nullptr;
+            return NULL;
 
         auto firstMeta = (MallocMetadata *) firstBlockAddress;
         firstMeta->size = size;
@@ -229,7 +229,7 @@ void *smalloc(size_t size) {
             } else {
                 lastBlock->size = size;
                 if (sbrk(bytesDiff) == ALLOCATION_ERROR) {
-                    return nullptr;
+                    return NULL;
                 }
                 listOfBlocks.totalAllocatedBytes += bytesDiff;
             }
@@ -246,7 +246,7 @@ void *smalloc(size_t size) {
         auto currBlock = isMMAP ? listOfMMAP : listOfBlocks.firstBlock;
         MallocMetadata *finalLinkedBlock;
 
-        while (currBlock != nullptr) {
+        while (currBlock != NULL) {
             if (size <= currBlock->size && currBlock->is_free) {
 
                 if (!isMMAP) {
@@ -274,7 +274,7 @@ void *smalloc(size_t size) {
                 sbrk(_size_meta_data() + size);
 
         if (newBlockAddress == ALLOCATION_ERROR)
-            return nullptr;
+            return NULL;
 
         auto newMeta = (MallocMetadata *) newBlockAddress;
         newMeta->size = size;
@@ -293,12 +293,12 @@ void *smalloc(size_t size) {
 
 void *scalloc(size_t num, size_t size) {
     if (size == 0 || sizeInCapacityRange(size * num))
-        return nullptr;
+        return NULL;
 
     void *newBlockAddress = smalloc(num * size);
 
     if (!newBlockAddress)
-        return nullptr;
+        return NULL;
 
     memset(newBlockAddress, 0, num * size);
     return newBlockAddress;
@@ -395,7 +395,7 @@ void sfree(void *p) {
 
 void *srealloc(void *oldp, size_t size) {
     if (size == 0 || sizeInCapacityRange(size))
-        return nullptr;
+        return NULL;
 
     if (!oldp)
         return smalloc(size);
@@ -413,7 +413,7 @@ void *srealloc(void *oldp, size_t size) {
         }else if(oldMetaData->size!=size){//isMMAP
                 void* newFixedBlock=smalloc(size);
                 if(!newFixedBlock)
-                    return nullptr;
+                    return NULL;
                 size_t oldSize=oldMetaData->size;
                  memcpy(newFixedBlock, oldp, oldMetaData->size);
                  oldMetaData->size=oldSize;
@@ -445,7 +445,7 @@ void *srealloc(void *oldp, size_t size) {
                 listOfBlocks.totalAllocatedBytes += diffBytes;
                 lastBlock->size = size;
                 if (sbrk(diffBytes) == ALLOCATION_ERROR)
-                    return nullptr;
+                    return NULL;
                 return getData(lastBlock);
             } else {
                 auto higherMeta = oldMetaData->next;
@@ -512,7 +512,7 @@ void *srealloc(void *oldp, size_t size) {
         // need to find free fitting block or allocate with sbrk
         void *newBlockAddress = smalloc(size);
         if (!newBlockAddress)
-            return nullptr;
+            return NULL;
         size_t oldSize=oldMetaData->size;
         memcpy(newBlockAddress, oldp, oldMetaData->size);
         oldMetaData->size=oldSize;

@@ -56,7 +56,7 @@ void *getData(MallocMetadata *metaData) {
 }
 
 MallocMetadata *getMetaData(void *data) {
-    return !data ? nullptr : ((MallocMetadata *) data - 1);
+    return !data ? NULL : ((MallocMetadata *) data - 1);
 }
 
 bool sizeInCapacityRange(size_t size) {
@@ -65,13 +65,13 @@ bool sizeInCapacityRange(size_t size) {
 
 void *smalloc(size_t size) {
     if (size == 0 || sizeInCapacityRange(size))
-        return nullptr;
+        return NULL;
 
     // first block allocation
     if (!listOfBlocks.totalAllocatedBlocks) {
         void *firstBlockAddress = sbrk(_size_meta_data() + size);
         if (firstBlockAddress == ALLOCATION_ERROR)
-            return nullptr;
+            return NULL;
 
         auto firstMeta = (MallocMetadata *) firstBlockAddress;
         firstMeta->size = size;
@@ -86,9 +86,9 @@ void *smalloc(size_t size) {
     } else {
 
         auto currBlock = listOfBlocks.firstBlock;
-        MallocMetadata *finalBlock = nullptr;
+        MallocMetadata *finalBlock = NULL;
 
-        while (currBlock != nullptr) {
+        while (currBlock != NULL) {
             if (size <= currBlock->size && currBlock->is_free) {
                 currBlock->is_free = false;
                 listOfBlocks.numberOfBlocksInUse++;
@@ -104,7 +104,7 @@ void *smalloc(size_t size) {
         // didn't find proper block,need to allocate
         void *newBlockAddress = sbrk(_size_meta_data() + size);
         if (newBlockAddress == ALLOCATION_ERROR) {
-            return nullptr;
+            return NULL;
         }
 
         auto newMeta = (MallocMetadata *) newBlockAddress;
@@ -126,11 +126,11 @@ void *smalloc(size_t size) {
 
 void *scalloc(size_t num, size_t size) {
     if (size == 0 || sizeInCapacityRange(size * num))
-        return nullptr;
+        return NULL;
 
     void *newBlockAddress = smalloc(num * size);
     if (!newBlockAddress)
-        return nullptr;
+        return NULL;
     memset(newBlockAddress, 0, num * size);
     return newBlockAddress;
 }
@@ -148,7 +148,7 @@ void sfree(void *p) {
 
 void *srealloc(void *oldP, size_t size) {
     if (size == 0 || sizeInCapacityRange(size))
-        return nullptr;
+        return NULL;
     if (!oldP)
         return smalloc(size);
 
@@ -161,7 +161,7 @@ void *srealloc(void *oldP, size_t size) {
         sfree(oldP);
         void *newBlockAddress = smalloc(size);
         if (!newBlockAddress)
-            return nullptr;
+            return NULL;
 
         memcpy(newBlockAddress, oldP, oldMetaData->size);
         return newBlockAddress;

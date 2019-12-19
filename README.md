@@ -3,7 +3,7 @@
 A simple memory allocation library, implements the notorious malloc(), free(), calloc() and realloc() functions.
 
 - [Theoretical questions & answers](Questions.pdf) (Hebrew)
-- [Instructions](Instruction.pdf) (English)
+- [Instructions](Instructions.pdf) (English)
 
 ## Installation
 
